@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MoreVertical, Package, Users } from 'lucide-react';
-import { getListingById, getUserById, markListingAsSold, renewListing, reportListing, startConversation } from '../services/dataService';
+import { getListingById, getUserById, markListingAsSold, renewListing, reportListing, startConversation, getConversationsForUser, sendMessage } from '../services/dataService';
 import type { MockListing } from '../services/mock/mockListings';
 import type { MockUser } from '../services/mock/mockUsers';
 import { CATEGORIES } from '../services/mock/mockCategories';
@@ -20,6 +20,8 @@ export default function ListingDetail() {
   const [imgError, setImgError] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [showBuyerSelect, setShowBuyerSelect] = useState(false);
+  const [buyerCandidates, setBuyerCandidates] = useState<MockUser[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -37,8 +39,37 @@ export default function ListingDetail() {
   const joinDate = new Date(seller.joinedDate).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
 
   const handleMarkSold = async () => {
+    const convs = await getConversationsForUser(listing.sellerId);
+    const listingConvs = convs.filter(c => c.listingId === listing.id);
+    const buyerIds = [...new Set(listingConvs.map(c => c.buyerId))];
+    const buyers: MockUser[] = [];
+    await Promise.all(buyerIds.map(async id => {
+      const u = await getUserById(id);
+      if (u) buyers.push(u);
+    }));
+    setBuyerCandidates(buyers);
+    setShowBuyerSelect(true);
+  };
+
+  const confirmMarkSold = async (buyerId: string | null) => {
     const updated = await markListingAsSold(listing.id);
-    if (updated) { setListing(updated); showToast('Listing marked as sold.', 'success'); }
+    if (updated) {
+      setListing(updated);
+      showToast('Listing marked as sold.', 'success');
+    }
+    if (buyerId && currentUser) {
+      const convs = await getConversationsForUser(listing.sellerId);
+      const conv = convs.find(c => c.listingId === listing.id && c.buyerId === buyerId);
+      if (conv) {
+        await sendMessage(conv.id, 'system', `Hi! You recently bought from ${seller.fullName}. How was your experience? Tap below to leave a rating.`);
+      }
+    }
+    setShowBuyerSelect(false);
+  };
+
+  const handleMarkFulfilled = async () => {
+    const updated = await renewListing(listing.id);
+    if (updated) { setListing(updated); showToast('Listing fulfilled and renewed for 7 days.', 'success'); }
   };
 
   const handleRenew = async () => {
@@ -158,12 +189,21 @@ export default function ListingDetail() {
       <div className="fixed bottom-0 left-0 right-0 bg-slate-deep border-t border-slate-border px-4 py-3 max-w-md mx-auto z-40">
         {isSeller ? (
           <div className="flex gap-3">
-            <button
-              onClick={handleMarkSold}
-              className="flex-1 bg-transparent border border-slate-border text-cream rounded-xl py-3 font-bold text-base"
-            >
-              Mark as Sold
-            </button>
+            {listing.listingType === 'single' ? (
+              <button
+                onClick={handleMarkSold}
+                className="flex-1 bg-transparent border border-slate-border text-cream rounded-xl py-3 font-bold text-base"
+              >
+                Mark as Sold
+              </button>
+            ) : (
+              <button
+                onClick={handleMarkFulfilled}
+                className="flex-1 bg-transparent border border-slate-border text-cream rounded-xl py-3 font-bold text-base"
+              >
+                Mark as Fulfilled
+              </button>
+            )}
             <button
               onClick={handleRenew}
               className="flex-1 bg-ember text-white rounded-xl py-3 font-bold text-base"
@@ -187,6 +227,42 @@ export default function ListingDetail() {
 
       {showReport && (
         <ReportModal onConfirm={handleReport} onClose={() => setShowReport(false)} />
+      )}
+
+      {showBuyerSelect && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" onClick={() => confirmMarkSold(null)}>
+          <div className="absolute inset-0 bg-black bg-opacity-50" />
+          <div className="relative bg-slate-card border border-slate-border rounded-2xl p-6 max-w-sm mx-4 w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="text-cream font-bold text-lg mb-4">Who bought this?</h3>
+            {buyerCandidates.length > 0 ? (
+              <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
+                {buyerCandidates.map(buyer => (
+                  <button
+                    key={buyer.id}
+                    onClick={() => confirmMarkSold(buyer.id)}
+                    className="flex items-center gap-3 px-4 py-3 bg-slate-deep border border-slate-border rounded-xl text-left"
+                  >
+                    <span
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-cream text-xs font-bold flex-shrink-0"
+                      style={{ backgroundColor: buyer.avatarColor }}
+                    >
+                      {buyer.avatarInitials}
+                    </span>
+                    <span className="text-cream text-sm font-bold">{buyer.fullName}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-cream-muted text-sm mb-4">No one has messaged about this listing yet.</p>
+            )}
+            <button
+              onClick={() => confirmMarkSold(null)}
+              className="text-teal-light underline text-sm w-full text-center mt-4 block"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

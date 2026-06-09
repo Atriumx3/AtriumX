@@ -8,11 +8,13 @@ export interface MockListing {
   imageUrl: string;
   campus: string;
   residence: string;
-  status: 'active' | 'sold' | 'suspended' | 'expired';
+  status: 'active' | 'sold' | 'suspended' | 'expired' | 'pending';
   reportCount: number;
   createdAt: string;
   expiresAt: string;
   contactCount: number;
+  listingType: 'single' | 'ongoing';
+  customCategory: string;
 }
 
 const now = new Date();
@@ -40,6 +42,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 4,
+    listingType: 'single',
+    customCategory: '',
   },
   {
     id: 'l2',
@@ -56,6 +60,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 7,
+    listingType: 'ongoing',
+    customCategory: '',
   },
   {
     id: 'l3',
@@ -72,6 +78,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 3,
+    listingType: 'ongoing',
+    customCategory: '',
   },
   {
     id: 'l4',
@@ -88,6 +96,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 5,
+    listingType: 'ongoing',
+    customCategory: '',
   },
   {
     id: 'l5',
@@ -99,11 +109,13 @@ export const MOCK_LISTINGS: MockListing[] = [
     imageUrl: 'https://picsum.photos/seed/l5/400/300',
     campus: 'Wits University',
     residence: 'International House',
-    status: 'active',
+    status: 'pending',
     reportCount: 0,
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 2,
+    listingType: 'single',
+    customCategory: '',
   },
   {
     id: 'l6',
@@ -120,6 +132,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 1,
+    listingType: 'single',
+    customCategory: '',
   },
   {
     id: 'l7',
@@ -136,6 +150,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 3,
+    listingType: 'single',
+    customCategory: '',
   },
   {
     id: 'l8',
@@ -152,6 +168,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 6,
+    listingType: 'single',
+    customCategory: '',
   },
   {
     id: 'l9',
@@ -168,6 +186,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 0,
+    listingType: 'single',
+    customCategory: '',
   },
   {
     id: 'l10',
@@ -184,6 +204,8 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: expiredExpiresAt,
     contactCount: 12,
+    listingType: 'ongoing',
+    customCategory: '',
   },
   {
     id: 'l11',
@@ -195,11 +217,13 @@ export const MOCK_LISTINGS: MockListing[] = [
     imageUrl: 'https://picsum.photos/seed/l11/400/300',
     campus: 'Wits University',
     residence: 'Dalrymple House',
-    status: 'active',
+    status: 'pending',
     reportCount: 1,
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 8,
+    listingType: 'single',
+    customCategory: '',
   },
   {
     id: 'l12',
@@ -216,5 +240,7 @@ export const MOCK_LISTINGS: MockListing[] = [
     createdAt: defaultCreatedAt,
     expiresAt: defaultExpiresAt,
     contactCount: 9,
+    listingType: 'ongoing',
+    customCategory: '',
   },
 ];

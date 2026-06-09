@@ -1,5 +1,5 @@
 interface StatusBadgeProps {
-  status: 'active' | 'sold' | 'suspended' | 'expired';
+  status: 'active' | 'sold' | 'suspended' | 'expired' | 'pending';
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -7,6 +7,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   sold: { label: 'Sold', className: 'bg-teal-primary text-cream' },
   suspended: { label: 'Suspended', className: 'bg-status-danger text-white' },
   expired: { label: 'Expired', className: 'bg-status-warning text-slate-deep' },
+  pending: { label: 'Pending', className: 'bg-status-warning text-slate-deep' },
 };
 
 export default function StatusBadge({ status }: StatusBadgeProps) {

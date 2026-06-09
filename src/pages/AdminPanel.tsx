@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getListings, getUserById, reportListing } from '../services/dataService';
+import { getListings, getAllListings, getUserById, reportListing, approveListing, rejectListing } from '../services/dataService';
 import type { MockListing } from '../services/mock/mockListings';
 import type { MockUser } from '../services/mock/mockUsers';
 import { useApp } from '../context/AppContext';
 import StatusBadge from '../components/common/StatusBadge';
+import EmptyState from '../components/common/EmptyState';
 
 export default function AdminPanel() {
   const { currentUser } = useApp();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'flagged' | 'all'>('flagged');
+  const [tab, setTab] = useState<'flagged' | 'all' | 'pending'>('flagged');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [listings, setListings] = useState<MockListing[]>([]);
   const [sellers, setSellers] = useState<Record<string, MockUser>>({});
 
   useEffect(() => {
     if (currentUser && !currentUser.isAdmin) { navigate('/feed'); return; }
-    getListings().then(async all => {
+    getAllListings().then(async all => {
       setListings(all);
       const ids = [...new Set(all.map(l => l.sellerId))];
       const map: Record<string, MockUser> = {};
@@ -42,6 +43,18 @@ export default function AdminPanel() {
 
   const handleClear = (id: string) => {
     setListings(prev => prev.map(l => l.id === id ? { ...l, reportCount: 0 } : l));
+  };
+
+  const handleApprove = async (id: string) => {
+    await approveListing(id);
+    const updated = await getAllListings();
+    setListings(updated);
+  };
+
+  const handleReject = async (id: string) => {
+    await rejectListing(id);
+    const updated = await getAllListings();
+    setListings(updated);
   };
 
   const ListingRow = ({ listing }: { listing: MockListing }) => {
@@ -98,6 +111,14 @@ export default function AdminPanel() {
           >
             All Listings
           </button>
+          <button
+            onClick={() => setTab('pending')}
+            className={`px-4 py-2 rounded-xl text-sm font-bold ${
+              tab === 'pending' ? 'bg-ember text-white' : 'bg-slate-card text-cream-muted border border-slate-border'
+            }`}
+          >
+            Pending Approval
+          </button>
         </div>
 
         {tab === 'flagged' && (
@@ -113,7 +134,7 @@ export default function AdminPanel() {
         {tab === 'all' && (
           <div>
             <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide">
-              {['all', 'active', 'sold', 'suspended', 'expired'].map(s => (
+              {['all', 'active', 'sold', 'suspended', 'expired', 'pending'].map(s => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
@@ -126,6 +147,36 @@ export default function AdminPanel() {
               ))}
             </div>
             {filtered.map(l => <ListingRow key={l.id} listing={l} />)}
+          </div>
+        )}
+
+        {tab === 'pending' && (
+          <div>
+            {listings.filter(l => l.status === 'pending').length === 0 ? (
+              <EmptyState icon="Package" message="No listings awaiting approval." />
+            ) : (
+              listings.filter(l => l.status === 'pending').map(l => {
+                const seller = sellers[l.sellerId];
+                const catLabel = l.category === 'other' && l.customCategory ? l.customCategory : l.category;
+                return (
+                  <div key={l.id} className="flex items-center gap-3 px-4 py-3 border-b border-slate-border">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-cream text-sm font-bold truncate">{l.title}</p>
+                      <p className="text-cream-muted text-xs">{seller?.fullName ?? 'Unknown'} · {catLabel} · {l.listingType === 'single' ? 'Single' : 'Ongoing'}</p>
+                      <p className="text-cream-muted text-xs">Submitted {new Date(l.createdAt).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}</p>
+                    </div>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => handleApprove(l.id)} className="bg-status-success text-white text-xs font-bold py-1 px-3 rounded-full">
+                        Approve
+                      </button>
+                      <button onClick={() => handleReject(l.id)} className="bg-status-danger text-white text-xs font-bold py-1 px-3 rounded-full">
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>

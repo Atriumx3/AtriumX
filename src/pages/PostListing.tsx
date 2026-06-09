@@ -14,6 +14,8 @@ export default function PostListing() {
   const [category, setCategory] = useState('');
   const [price, setPrice] = useState('');
   const [description, setDescription] = useState('');
+  const [listingType, setListingType] = useState<'single' | 'ongoing'>('single');
+  const [customCategory, setCustomCategory] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const isFormValid =
@@ -31,6 +33,7 @@ export default function PostListing() {
     if (!imageData) errs.image = 'A photo is required.';
     if (!title.trim()) errs.title = 'Title is required.';
     if (!category) errs.category = 'Select a category.';
+    if (category === 'other' && !customCategory.trim()) errs.customCategory = 'Please describe your category.';
     if (!price || Number(price) <= 0) errs.price = 'Enter a positive price.';
     if (description.length < 20) errs.description = 'Minimum 20 characters required.';
 
@@ -47,6 +50,8 @@ export default function PostListing() {
       imageUrl: imageData ?? '',
       campus: currentUser.campus,
       residence: currentUser.residence,
+      listingType,
+      customCategory: category === 'other' ? customCategory.trim() : '',
     });
 
     showToast('Your listing is live for 7 days.', 'success');
@@ -103,6 +108,46 @@ export default function PostListing() {
               ))}
             </select>
             {errors.category && <p className="text-status-danger text-sm mt-1">{errors.category}</p>}
+          </div>
+
+          {category === 'other' && (
+            <div>
+              <label htmlFor="customCategory" className="text-cream text-sm font-medium mb-1 block">Please describe your category</label>
+              <input
+                id="customCategory"
+                type="text"
+                placeholder="e.g. Hair braiding, Phone repairs, Art prints"
+                value={customCategory}
+                onChange={e => setCustomCategory(e.target.value.slice(0, 60))}
+                maxLength={60}
+                className={inputClass}
+                required
+              />
+              {errors.customCategory && <p className="text-status-danger text-sm mt-1">{errors.customCategory}</p>}
+            </div>
+          )}
+
+          <div>
+            <label className="text-cream text-sm font-medium mb-1 block">Listing type</label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setListingType('single')}
+                className={listingType === 'single' ? 'bg-teal-primary text-cream border border-teal-light rounded-full px-4 py-2 text-sm font-medium' : 'bg-slate-card text-cream-muted border border-slate-border rounded-full px-4 py-2 text-sm font-medium'}
+              >
+                Single item
+              </button>
+              <button
+                type="button"
+                onClick={() => setListingType('ongoing')}
+                className={listingType === 'ongoing' ? 'bg-teal-primary text-cream border border-teal-light rounded-full px-4 py-2 text-sm font-medium' : 'bg-slate-card text-cream-muted border border-slate-border rounded-full px-4 py-2 text-sm font-medium'}
+              >
+                Always available
+              </button>
+            </div>
+            <p className="text-cream-muted text-xs mt-1">
+              {listingType === 'single' ? 'I have one of this, once sold it closes' : 'I sell this regularly, stays live'}
+            </p>
           </div>
 
           <div>

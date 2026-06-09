@@ -10,7 +10,7 @@ let conversations = [...MOCK_CONVERSATIONS].map(c => ({
 
 // --- LISTINGS ---
 export async function getListings(filters: { category?: string; search?: string } = {}): Promise<MockListing[]> {
-  let result = listings.map(l => ({ ...l }));
+  let result = listings.map(l => ({ ...l })).filter(l => l.status !== 'pending');
 
   if (filters.category && filters.category !== 'all') {
     result = result.filter(l => l.category === filters.category);
@@ -66,6 +66,22 @@ export async function reportListing(id: string): Promise<MockListing | undefined
     const newCount = l.reportCount + 1;
     return { ...l, reportCount: newCount, status: newCount >= 2 ? 'suspended' as const : l.status };
   });
+  const listing = listings.find(l => l.id === id);
+  return listing ? { ...listing } : undefined;
+}
+
+export async function getAllListings(): Promise<MockListing[]> {
+  return listings.map(l => ({ ...l }));
+}
+
+export async function approveListing(id: string): Promise<MockListing | undefined> {
+  listings = listings.map(l => l.id === id ? { ...l, status: 'active' as const } : l);
+  const listing = listings.find(l => l.id === id);
+  return listing ? { ...listing } : undefined;
+}
+
+export async function rejectListing(id: string): Promise<MockListing | undefined> {
+  listings = listings.map(l => l.id === id ? { ...l, status: 'suspended' as const } : l);
   const listing = listings.find(l => l.id === id);
   return listing ? { ...listing } : undefined;
 }

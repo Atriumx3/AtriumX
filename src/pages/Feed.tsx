@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { getListings, getUserById } from '../services/dataService';
 import type { MockListing } from '../services/mock/mockListings';
@@ -11,7 +12,8 @@ import ListingCard from '../components/common/ListingCard';
 import EmptyState from '../components/common/EmptyState';
 
 export default function Feed() {
-  const { activeCategory, searchQuery, setSearchQuery } = useApp();
+  const navigate = useNavigate();
+  const { activeCategory, searchQuery, setSearchQuery, currentUser } = useApp();
   const [listings, setListings] = useState<MockListing[]>([]);
   const [sellers, setSellers] = useState<Record<string, MockUser>>({});
 
@@ -63,7 +65,7 @@ export default function Feed() {
 
       <div className="px-4 pt-2 flex flex-col gap-4">
         {filtered.length === 0 ? (
-          <EmptyState icon="Package" message="Nothing here yet. Be the first to post." actionLabel="Post a Listing" onAction={() => {}} />
+          <EmptyState icon="Package" message="Nothing here yet. Be the first to post." actionLabel="Post a Listing" onAction={() => navigate(currentUser ? '/post' : '/student')} />
         ) : (
           filtered.map(listing => (
             <ListingCard

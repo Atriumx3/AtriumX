@@ -7,12 +7,16 @@ export default function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const navItems = [
-    { icon: Home, label: 'Feed', path: '/feed' },
-    { icon: PlusCircle, label: 'Post', path: '/post', size: 28 },
-    { icon: MessageCircle, label: 'Messages', path: '/chat' },
-    { icon: User, label: 'Profile', path: currentUser ? `/profile/${currentUser.id}` : '/feed' },
-  ];
+  const navItems = currentUser
+    ? [
+        { icon: Home, label: 'Feed', path: '/feed' },
+        { icon: PlusCircle, label: 'Post', path: '/post', size: 28 },
+        { icon: MessageCircle, label: 'Messages', path: '/chat' },
+        { icon: User, label: 'Profile', path: `/profile/${currentUser.id}` },
+      ]
+    : [
+        { icon: Home, label: 'Feed', path: '/feed' },
+      ];
 
   const isActive = (path: string) => {
     if (path === '/chat') return location.pathname.startsWith('/chat');

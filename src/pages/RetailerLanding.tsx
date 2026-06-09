@@ -82,6 +82,17 @@ export default function RetailerLanding() {
         <p className="text-cream-muted text-sm text-center mb-8">No contracts. No surprises. Pay per listing period.</p>
         <div className="max-w-md mx-auto">
           <PricingCard
+            tier="Resident"
+            price="R 0"
+            period="/ month"
+            features={[
+              '1 active listing at a time',
+              'Listing expires after 3 days',
+              'Standard feed placement',
+              'In-app messaging',
+            ]}
+          />
+          <PricingCard
             tier="Noticeboard"
             price="R 150"
             period="/ week"

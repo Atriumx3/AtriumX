@@ -134,7 +134,7 @@ export default function StudentAuth() {
               </div>
 
               <div>
-                <label htmlFor="residence" className="sr-only">Residence</label>
+                <label htmlFor="residence" className="text-cream text-sm font-medium mb-1 block">Residence or building name</label>
                 <input
                   id="residence"
                   type="text"
