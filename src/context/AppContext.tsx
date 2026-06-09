@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { MockUser } from '../services/mock/mockUsers';
+import type { Profile } from '../services/dataService';
 import { getCurrentUser } from '../services/dataService';
-import { MOCK_CONVERSATIONS } from '../services/mock/mockMessages';
+import { supabase } from '../services/supabaseClient';
 
 interface Toast {
   id: number;
@@ -10,8 +10,8 @@ interface Toast {
 }
 
 interface AppContextType {
-  currentUser: MockUser | null;
-  setCurrentUser: (user: MockUser | null) => void;
+  currentUser: Profile | null;
+  setCurrentUser: (user: Profile | null) => void;
   isStudentSide: boolean;
   setIsStudentSide: (val: boolean) => void;
   activeCategory: string;
@@ -19,6 +19,7 @@ interface AppContextType {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   unreadMessageCount: number;
+  setUnreadMessageCount: (count: number) => void;
   toasts: Toast[];
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   redirectAfterLogin: string | null;
@@ -34,30 +35,42 @@ export function useApp(): AppContextType {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<MockUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [isStudentSide, setIsStudentSide] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [toastId, setToastId] = useState(0);
   const [redirectAfterLogin, setRedirectAfterLogin] = useState<string | null>(null);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
-  const unreadMessageCount = MOCK_CONVERSATIONS.reduce((count, conv) => {
-    return count + conv.messages.filter(m => !m.read && m.senderId !== (currentUser?.id ?? '')).length;
-  }, 0);
-
+  // On mount: get current session and subscribe to auth changes
   useEffect(() => {
     getCurrentUser().then(user => setCurrentUser(user));
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        getCurrentUser().then(user => setCurrentUser(user));
+      } else {
+        setCurrentUser(null);
+        setUnreadMessageCount(0);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = toastId + 1;
-    setToastId(id);
-    setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
-  }, [toastId]);
+  const showToast = useCallback(
+    (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+      const id = toastId + 1;
+      setToastId(id);
+      setToasts(prev => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, 3000);
+    },
+    [toastId]
+  );
 
   return (
     <AppContext.Provider
@@ -71,6 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         searchQuery,
         setSearchQuery,
         unreadMessageCount,
+        setUnreadMessageCount,
         toasts,
         showToast,
         redirectAfterLogin,
