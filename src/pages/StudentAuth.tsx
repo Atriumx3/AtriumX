@@ -11,6 +11,7 @@ export default function StudentAuth() {
   const [fullName, setFullName] = useState('');
   const [residence, setResidence] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
   const { setCurrentUser, redirectAfterLogin, setRedirectAfterLogin } = useApp();
   const navigate = useNavigate();
 
@@ -46,25 +47,40 @@ export default function StudentAuth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    setLoading(true);
 
     if (mode === 'login') {
       const { user, error } = await loginWithEmail(email, password);
-      if (error) { setErrors({ email: error }); return; }
-      if (user) { setCurrentUser(user); navigate(redirectAfterLogin ?? '/feed'); setRedirectAfterLogin(null); }
-    } else {
-      const { user, error } = await registerWithEmail(email, password, fullName);
-      if (error) { setErrors({ email: error }); return; }
+      setLoading(false);
+      if (error) {
+        setErrors({ email: 'Invalid email or password. Please try again.' });
+        return;
+      }
       if (user) {
         setCurrentUser(user);
-        if ('Notification' in window && Notification.permission !== 'granted') {
+        navigate(redirectAfterLogin ?? '/feed');
+        setRedirectAfterLogin(null);
+      }
+    } else {
+      const { user, error } = await registerWithEmail(email, password, fullName, residence);
+      setLoading(false);
+      if (error) {
+        setErrors({ email: error });
+        return;
+      }
+      if (user) {
+        setCurrentUser(user);
+        if ('Notification' in window && Notification.permission === 'default') {
           Notification.requestPermission();
         }
-        navigate(redirectAfterLogin ?? '/feed'); setRedirectAfterLogin(null);
+        navigate(redirectAfterLogin ?? '/feed');
+        setRedirectAfterLogin(null);
       }
     }
   };
 
-  const inputClass = 'bg-slate-card border border-slate-border rounded-xl px-4 py-3 text-cream w-full text-sm placeholder:text-cream-muted focus:outline-none focus:border-teal-light';
+  const inputClass =
+    'bg-slate-card border border-slate-border rounded-xl px-4 py-3 text-cream w-full text-sm placeholder:text-cream-muted focus:outline-none focus:border-teal-light';
 
   return (
     <div className="min-h-screen bg-slate-deep flex flex-col items-center justify-center px-6">
@@ -88,7 +104,9 @@ export default function StudentAuth() {
                 onChange={e => setFullName(e.target.value)}
                 className={inputClass}
               />
-              {errors.fullName && <p className="text-status-danger text-sm mt-1">{errors.fullName}</p>}
+              {errors.fullName && (
+                <p className="text-status-danger text-sm mt-1">{errors.fullName}</p>
+              )}
             </div>
           )}
 
@@ -102,7 +120,9 @@ export default function StudentAuth() {
               onChange={e => setEmail(e.target.value)}
               className={inputClass}
             />
-            {errors.email && <p className="text-status-danger text-sm mt-1">{errors.email}</p>}
+            {errors.email && (
+              <p className="text-status-danger text-sm mt-1">{errors.email}</p>
+            )}
           </div>
 
           <div>
@@ -110,12 +130,16 @@ export default function StudentAuth() {
             <input
               id="password"
               type="password"
-              placeholder={mode === 'register' ? 'Create a password (min 8 characters)' : 'Password'}
+              placeholder={
+                mode === 'register' ? 'Create a password (min 8 characters)' : 'Password'
+              }
               value={password}
               onChange={e => setPassword(e.target.value)}
               className={inputClass}
             />
-            {errors.password && <p className="text-status-danger text-sm mt-1">{errors.password}</p>}
+            {errors.password && (
+              <p className="text-status-danger text-sm mt-1">{errors.password}</p>
+            )}
           </div>
 
           {mode === 'register' && (
@@ -130,11 +154,18 @@ export default function StudentAuth() {
                   onChange={e => setConfirmPassword(e.target.value)}
                   className={inputClass}
                 />
-                {errors.confirmPassword && <p className="text-status-danger text-sm mt-1">{errors.confirmPassword}</p>}
+                {errors.confirmPassword && (
+                  <p className="text-status-danger text-sm mt-1">{errors.confirmPassword}</p>
+                )}
               </div>
 
               <div>
-                <label htmlFor="residence" className="text-cream text-sm font-medium mb-1 block">Residence or building name</label>
+                <label
+                  htmlFor="residence"
+                  className="text-cream text-sm font-medium mb-1 block"
+                >
+                  Residence or building name
+                </label>
                 <input
                   id="residence"
                   type="text"
@@ -142,18 +173,26 @@ export default function StudentAuth() {
                   value={residence}
                   onChange={e => setResidence(e.target.value)}
                   className={inputClass}
-                  required
                 />
-                {errors.residence && <p className="text-status-danger text-sm mt-1">{errors.residence}</p>}
+                {errors.residence && (
+                  <p className="text-status-danger text-sm mt-1">{errors.residence}</p>
+                )}
               </div>
             </>
           )}
 
           <button
             type="submit"
-            className="bg-ember text-white rounded-xl py-3 px-6 font-bold text-base w-full"
+            disabled={loading}
+            className="bg-ember text-white rounded-xl py-3 px-6 font-bold text-base w-full disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {mode === 'login' ? 'Sign In' : 'Create Account'}
+            {loading
+              ? mode === 'login'
+                ? 'Signing in...'
+                : 'Creating account...'
+              : mode === 'login'
+              ? 'Sign In'
+              : 'Create Account'}
           </button>
         </form>
 
@@ -161,14 +200,26 @@ export default function StudentAuth() {
           {mode === 'login' ? (
             <span className="text-cream-muted">
               Don't have an account?{' '}
-              <button onClick={() => { setMode('register'); setErrors({}); }} className="text-teal-light underline">
+              <button
+                onClick={() => {
+                  setMode('register');
+                  setErrors({});
+                }}
+                className="text-teal-light underline"
+              >
                 Register
               </button>
             </span>
           ) : (
             <span className="text-cream-muted">
               Already have an account?{' '}
-              <button onClick={() => { setMode('login'); setErrors({}); }} className="text-teal-light underline">
+              <button
+                onClick={() => {
+                  setMode('login');
+                  setErrors({});
+                }}
+                className="text-teal-light underline"
+              >
                 Sign in
               </button>
             </span>
