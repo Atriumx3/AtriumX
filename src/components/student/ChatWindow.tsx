@@ -3,6 +3,7 @@ import { Send } from 'lucide-react';
 import type { Conversation, Message, Profile } from '../../services/dataService';
 import { sendMessage } from '../../services/dataService';
 import { useApp } from '../../context/AppContext';
+import { supabase } from '../../services/supabaseClient';
 
 const PHONE_REGEX = /(\d[\s-]?){7,}/g;
 
@@ -25,6 +26,26 @@ export default function ChatWindow({ conversation, otherUser, listingTitle }: Ch
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('messages:' + conversation.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: 'conversation_id=eq.' + conversation.id,
+      }, (payload) => {
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === payload.new.id);
+          if (exists) return prev;
+          return [...prev, payload.new as Message];
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [conversation.id]);
 
   const handleSend = async () => {
     if (!input.trim() || !currentUser) return;

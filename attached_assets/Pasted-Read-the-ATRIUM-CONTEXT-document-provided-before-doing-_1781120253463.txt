@@ -1,0 +1,373 @@
+Read the ATRIUM_CONTEXT document provided before doing 
+anything. Every detail about how this app works, its 
+database schema, its file structure, and its absolute 
+rules is described there. Do not make assumptions about 
+anything described in that document.
+
+This prompt addresses 11 bugs. Fix them in order.
+Do not fix anything not listed.
+Do not change any styling, colors, layout, or routing.
+Do not rewrite any file from scratch.
+Do not add any new dependencies.
+After all fixes push to GitHub and list every file changed.
+
+---
+
+FIX 1 — src/components/common/Navbar.tsx
+
+The avatar button uses currentUser.avatarColor and 
+currentUser.avatarInitials. These properties do not 
+exist on the Profile type. The correct snake_case 
+properties are avatar_color and avatar_initials.
+
+Find these two lines:
+  style={{ backgroundColor: currentUser.avatarColor }}
+  {currentUser.avatarInitials}
+
+Replace with:
+  style={{ backgroundColor: currentUser.avatar_color }}
+  {currentUser.avatar_initials}
+
+Change nothing else in this file.
+
+---
+
+FIX 2 — src/pages/PostListing.tsx — remove campus field
+
+The createListing call contains this line:
+  campus: currentUser.campus,
+
+The Profile type has no campus property. The database 
+has no campus column. Remove this line entirely.
+
+Change nothing else in this file.
+
+---
+
+FIX 3 — src/pages/PostListing.tsx — add plan field
+
+The createListing call does not pass a plan field. 
+Without it the listing expiry calculation in dataService 
+receives undefined and defaults incorrectly.
+
+Inside the same createListing call object add:
+  plan: currentUser.plan ?? 'ghost',
+
+This line goes after the residence field.
+
+Also update the success toast from:
+  'Your listing is live for 7 days.'
+To:
+  'Listing submitted for review. It will appear in 
+   the feed once approved.'
+
+Change nothing else in this file.
+
+---
+
+FIX 4 — src/components/student/RateSellerModal.tsx
+Part A — wrong return value destructuring
+
+The handleSubmit function does:
+  const { success } = await submitRating(...)
+  if (success) { ... }
+
+submitRating returns { error: string | null } not 
+{ success }. There is no success property.
+
+Replace:
+  const { success } = await submitRating(sellerId, stars, listingId, raterId);
+  if (success) {
+
+With:
+  const { error } = await submitRating(sellerId, raterId, listingId, stars, comment);
+  if (!error) {
+
+Part B — wrong argument order
+
+The current call passes arguments as:
+  sellerId, stars, listingId, raterId
+
+The correct signature is:
+  submitRating(sellerId, buyerId, listingId, stars, comment?)
+
+The corrected call in Part A above already fixes this.
+The raterId prop IS the buyerId. Pass comment from state.
+
+Change nothing else in this file.
+
+---
+
+FIX 5 — src/pages/ChatPage.tsx
+Part A — wrong argument order in handleRate
+
+The current call:
+  await submitRating(activeConv.seller_id, stars, 
+    activeConv.listing_id, currentUser.id);
+
+The correct signature is:
+  submitRating(sellerId, buyerId, listingId, stars, comment?)
+
+Replace with:
+  await submitRating(activeConv.seller_id, currentUser.id, 
+    activeConv.listing_id, stars, comment);
+
+Part B — handleResolved uses return value incorrectly
+
+The current code:
+  const updated = await markConversationResolved(activeConv.id);
+  if (updated) {
+    setActiveConv(updated);
+    showToast('Conversation marked as resolved.', 'success');
+  }
+
+markConversationResolved returns { error: string | null } 
+not a Conversation object. updated is always truthy 
+because an object is always truthy. setActiveConv is 
+receiving a { error } object instead of a Conversation.
+
+Replace with:
+  const { error } = await markConversationResolved(activeConv.id);
+  if (!error) {
+    setActiveConv(prev => prev ? { ...prev, is_resolved: true } : prev);
+    showToast('Conversation marked as resolved.', 'success');
+  }
+
+Change nothing else in this file.
+
+---
+
+FIX 6 — src/pages/ListingDetail.tsx
+Part A — replace sendMessage with createNotification
+
+Inside the confirmMarkSold function find:
+  if (conv) {
+    await sendMessage(conv.id, 'system', `Hi! You recently 
+    bought from ${seller.full_name}. How was your experience? 
+    Tap below to leave a rating.`);
+  }
+
+sendMessage requires a real profile id as sender. 
+Passing 'system' violates the database foreign key 
+constraint and will throw a Supabase error.
+
+Replace with:
+  if (conv && currentUser) {
+    await createNotification({
+      userId: buyerId,
+      message: `You bought from ${seller.full_name}. 
+      How was your experience? Tap here to leave a rating.`,
+      type: 'rating_request',
+      listingId: listing.id,
+      conversationId: conv.id,
+    });
+  }
+
+Part B — update the import line
+
+The current import line includes sendMessage:
+  import { getListingById, getUserById, markListingAsSold, 
+  renewListing, reportListing, startConversation, 
+  getConversationsForUser, sendMessage } 
+  from '../services/dataService';
+
+sendMessage is no longer used. createNotification is now 
+needed. Replace the entire import line with:
+  import { getListingById, getUserById, markListingAsSold, 
+  renewListing, reportListing, startConversation, 
+  getConversationsForUser, createNotification } 
+  from '../services/dataService';
+
+Change nothing else in this file.
+
+---
+
+FIX 7 — src/pages/RetailerSignup.tsx
+
+The handleSubmit function currently console.logs the 
+form data and sets submitted to true without saving 
+anything to Supabase.
+
+Add this import at the top of the file with the 
+other imports:
+  import { submitBusinessApplication } from 
+  '../services/dataService';
+
+Replace the entire handleSubmit function:
+
+REMOVE:
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+    console.log({ businessName, businessType, 
+      contactName, email, phone, 
+      package: package_, description });
+    setSubmitted(true);
+  };
+
+ADD:
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+    const { error } = await submitBusinessApplication({
+      businessName,
+      businessType,
+      contactPerson: contactName,
+      email,
+      phone,
+      selectedPackage: package_,
+      description,
+    });
+    if (error) {
+      alert('Submission failed. Please try again.');
+      return;
+    }
+    setSubmitted(true);
+  };
+
+Change nothing else in this file.
+
+---
+
+FIX 8 — src/components/student/ChatWindow.tsx
+
+Messages only appear when the current user sends them. 
+The other person's messages require a page refresh 
+because there is no real-time subscription.
+
+Add this import at the top of the file:
+  import { supabase } from '../../services/supabaseClient';
+
+Add this import to the existing React import line — 
+add Message to the type imports from dataService if 
+not already there.
+
+Add this useEffect after the existing scroll useEffect:
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('messages:' + conversation.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: 'conversation_id=eq.' + conversation.id,
+      }, (payload) => {
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === 
+            payload.new.id);
+          if (exists) return prev;
+          return [...prev, payload.new as Message];
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [conversation.id]);
+
+Change nothing else in this file.
+
+---
+
+FIX 9 — src/components/student/ListingCountdown.tsx
+
+The countdown calculates once at render and never 
+updates. Replace the entire file content with exactly 
+this — this is the only file that may be fully replaced:
+
+import { useState, useEffect } from 'react';
+
+interface ListingCountdownProps {
+  expiresAt: string;
+}
+
+export default function ListingCountdown({ 
+  expiresAt 
+}: ListingCountdownProps) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => 
+      setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const expires = new Date(expiresAt);
+  const diff = expires.getTime() - now.getTime();
+
+  if (diff <= 0) {
+    return (
+      <span className="text-status-danger text-xs">
+        Expired
+      </span>
+    );
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor(
+    (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+  );
+
+  if (days > 2) {
+    return (
+      <span className="text-cream-muted text-xs">
+        Expires in {days} days
+      </span>
+    );
+  }
+  return (
+    <span className="text-status-warning text-xs">
+      Expires in {hours}h
+    </span>
+  );
+}
+
+---
+
+FIX 10 — Cloudflare build-time environment variables
+
+Create one new file in the project root:
+  _headers
+
+This file has no extension. Name it exactly _headers.
+Content of the file:
+/*
+  X-Frame-Options: DENY
+
+Also create one new file in the project root:
+  .env.production
+
+Content — leave the values blank, add a comment:
+# These values must be set in Cloudflare Pages
+# Settings > Variables and secrets
+# They are listed here so Vite knows to expect them
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+
+Also update vite.config.ts — replace its entire 
+content with:
+
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  base: '/',
+  define: {
+    'process.env': {}
+  },
+})
+
+The define block ensures Vite does not throw when 
+environment variables are referenced at build time 
+on Cloudflare's build system.
+
+---
+
+AFTER ALL FIXES:
+
+Confirm each fix number is complete.
+List every file that was created or modified.
+Do not add anything not listed above.
+Do not suggest improvements.
+Push everything to GitHub.

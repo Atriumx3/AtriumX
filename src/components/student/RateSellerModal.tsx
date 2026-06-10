@@ -20,8 +20,8 @@ export default function RateSellerModal({ sellerId, listingId, raterId, sellerNa
 
   const handleSubmit = async () => {
     if (stars === 0 || submitted) return;
-    const { success } = await submitRating(sellerId, stars, listingId, raterId);
-    if (success) {
+    const { error } = await submitRating(sellerId, raterId, listingId, stars, comment);
+    if (!error) {
       setSubmitted(true);
       showToast('Rating submitted. Thank you.', 'success');
     }

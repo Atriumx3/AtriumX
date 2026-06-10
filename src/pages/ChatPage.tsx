@@ -49,16 +49,16 @@ export default function ChatPage() {
 
   const handleResolved = async () => {
     if (!activeConv || !currentUser) return;
-    const updated = await markConversationResolved(activeConv.id);
-    if (updated) {
-      setActiveConv(updated);
+    const { error } = await markConversationResolved(activeConv.id);
+    if (!error) {
+      setActiveConv(prev => prev ? { ...prev, is_resolved: true } : prev);
       showToast('Conversation marked as resolved.', 'success');
     }
   };
 
   const handleRate = async (stars: number, comment: string) => {
     if (!activeConv || !currentUser) return;
-    await submitRating(activeConv.seller_id, stars, activeConv.listing_id, currentUser.id);
+    await submitRating(activeConv.seller_id, currentUser.id, activeConv.listing_id, stars, comment);
     setShowRateModal(false);
   };
 

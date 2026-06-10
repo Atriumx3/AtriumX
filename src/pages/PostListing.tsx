@@ -48,13 +48,13 @@ export default function PostListing() {
       price: Number(price),
       category,
       imageUrl: imageData ?? '',
-      campus: currentUser.campus,
       residence: currentUser.residence,
       listingType,
       customCategory: category === 'other' ? customCategory.trim() : '',
+      plan: currentUser.plan ?? 'ghost',
     });
 
-    showToast('Your listing is live for 7 days.', 'success');
+    showToast('Listing submitted for review. It will appear in the feed once approved.', 'success');
     navigate('/feed');
   };
 

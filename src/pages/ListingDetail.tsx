@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MoreVertical, Package, Users } from 'lucide-react';
-import { getListingById, getUserById, markListingAsSold, renewListing, reportListing, startConversation, getConversationsForUser, sendMessage } from '../services/dataService';
+import { getListingById, getUserById, markListingAsSold, renewListing, reportListing, startConversation, getConversationsForUser, createNotification } from '../services/dataService';
 import type { Listing, Profile } from '../services/dataService';
 import { CATEGORIES } from '../services/mock/mockCategories';
 import { useApp } from '../context/AppContext';
@@ -60,8 +60,14 @@ export default function ListingDetail() {
     if (buyerId && currentUser) {
       const convs = await getConversationsForUser(listing.seller_id);
       const conv = convs.find(c => c.listing_id === listing.id && c.buyer_id === buyerId);
-      if (conv) {
-        await sendMessage(conv.id, 'system', `Hi! You recently bought from ${seller.full_name}. How was your experience? Tap below to leave a rating.`);
+      if (conv && currentUser) {
+        await createNotification({
+          userId: buyerId,
+          message: `You bought from ${seller.full_name}. How was your experience? Tap here to leave a rating.`,
+          type: 'rating_request',
+          listingId: listing.id,
+          conversationId: conv.id,
+        });
       }
     }
     setShowBuyerSelect(false);

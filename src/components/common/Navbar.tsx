@@ -20,9 +20,9 @@ export default function Navbar() {
           <button
             onClick={() => navigate(`/profile/${currentUser.id}`)}
             className="w-8 h-8 rounded-full flex items-center justify-center text-cream text-xs font-bold"
-            style={{ backgroundColor: currentUser.avatarColor }}
+            style={{ backgroundColor: currentUser.avatar_color }}
           >
-            {currentUser.avatarInitials}
+            {currentUser.avatar_initials}
           </button>
         )}
       </div>

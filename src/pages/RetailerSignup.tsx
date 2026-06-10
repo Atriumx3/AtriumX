@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import RetailerNavbar from '../components/retailer/RetailerNavbar';
+import { submitBusinessApplication } from '../services/dataService';
 
 export default function RetailerSignup() {
   const [searchParams] = useSearchParams();
@@ -26,10 +27,22 @@ export default function RetailerSignup() {
     businessName.trim() && businessType && contactName.trim() &&
     email.trim() && phone.trim() && package_ && description.trim();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
-    console.log({ businessName, businessType, contactName, email, phone, package: package_, description });
+    const { error } = await submitBusinessApplication({
+      businessName,
+      businessType,
+      contactPerson: contactName,
+      email,
+      phone,
+      selectedPackage: package_,
+      description,
+    });
+    if (error) {
+      alert('Submission failed. Please try again.');
+      return;
+    }
     setSubmitted(true);
   };
 
