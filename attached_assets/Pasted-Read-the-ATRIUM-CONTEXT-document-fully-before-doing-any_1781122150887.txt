@@ -1,0 +1,59 @@
+Read the ATRIUM_CONTEXT document fully before doing 
+anything. Do not skip any section.
+
+Your only task in this prompt is to investigate and 
+report. Do not change any file. Do not fix anything. 
+Do not add anything. Do not delete anything.
+
+The live site at atriumx.pages.dev shows a completely 
+blank dark screen. The Cloudflare build log shows the 
+build succeeds and deploys successfully every time. 
+This means the problem is a runtime crash — something 
+in the JavaScript fails the moment the app loads in 
+the browser, before React renders anything visible.
+
+The background color loads correctly which confirms 
+CSS works. The problem is entirely in the JavaScript.
+
+---
+
+INVESTIGATE THESE SPECIFIC AREAS IN ORDER:
+
+AREA 1 — src/services/supabaseClient.ts
+Read this file and report exactly what it does.
+Then answer:
+- Does it handle the case where VITE_SUPABASE_URL 
+  or VITE_SUPABASE_ANON_KEY are undefined at runtime?
+- If createClient is called with undefined values 
+  what happens?
+- Does anything in this file prevent a crash if 
+  the environment variables are missing?
+
+AREA 2 — src/context/AppContext.tsx
+Read this file and report exactly what happens on 
+first load.
+Then answer:
+- Does the useEffect that calls supabase.auth
+  .onAuthStateChange have any protection against 
+  supabase being undefined or misconfigured?
+- If supabase fails to initialise in Area 1 and 
+  AppContext tries to call supabase.auth methods 
+  what happens?
+- Would this crash be catchable or would it crash 
+  the entire React tree silently?
+
+AREA 3 — src/App.tsx
+Read the routing configuration and answer:
+- Is there any route or redirect that could send 
+  the app into an infinite loop on first load?
+- Does the / route render Entrance.tsx with no 
+  conditions or redirects?
+- Is AppProvider wrapping AppRoutes correctly?
+- Could any import in this file fail silently?
+
+AREA 4 — src/components/common/Navbar.tsx
+Read this file and answer:
+- Does it reference currentUser.avatarColor or 
+  currentUser.avatarInitials anywhere?
+- The correct property names are avatar_color and 
+  avatar_initial
