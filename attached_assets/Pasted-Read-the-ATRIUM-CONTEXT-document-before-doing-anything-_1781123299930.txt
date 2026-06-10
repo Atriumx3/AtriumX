@@ -1,0 +1,92 @@
+Read the ATRIUM_CONTEXT document before doing anything.
+
+CRITICAL RULE: The site was previously blank due to 
+a module crash. Every change in this prompt must 
+preserve the crash protection already added to 
+supabaseClient.ts and AppContext.tsx. Do not touch 
+those two files under any circumstances.
+
+Do not change any Tailwind classes, colors, or layout.
+Do not add any features not listed here.
+Do not rewrite any file from scratch except where 
+explicitly stated.
+Inspect every file you touch before and after to 
+confirm nothing broke.
+Push to GitHub when done and list every file modified.
+
+---
+
+FIX 1 — App.tsx — entrance page must load first
+
+The app currently opens on the login page instead 
+of the entrance page. This means something is 
+redirecting from / to /student on first load.
+
+Read App.tsx and find anything that could cause 
+this redirect. It could be:
+- A Navigate component on the / route
+- A redirect inside Entrance.tsx
+- An auth check that sends unauthenticated users 
+  to /student before the entrance page renders
+
+Fix it so that / renders Entrance.tsx with 
+absolutely no conditions, no auth checks, and 
+no redirects. The entrance page must be visible 
+to anyone including users who are not logged in.
+
+Do not change any other route.
+
+---
+
+FIX 2 — index.html — update the browser tab title
+
+Find the <title> tag in index.html.
+Change its content from "Campus Noticeboard" 
+to "Atrium".
+Change nothing else in this file.
+
+---
+
+FIX 3 — Entrance.tsx — update the brand name display
+
+The entrance page shows "Campus Noticeboard" as 
+the heading and "CN" as the logo mark.
+
+Find and replace:
+- The "CN" text with "AX"
+- The heading "Campus Noticeboard" with "Atrium"
+- The subheading if it references Campus Noticeboard, 
+  replace with "The residence economy, organised."
+  If it already says that, leave it alone.
+
+Do not change any styling, colors, or layout.
+Do not change the two card buttons or their 
+navigation targets.
+
+---
+
+FIX 4 — StudentAuth.tsx — update the logo mark
+
+The login and register page shows "CN" at the top.
+Find that text and replace it with "AX".
+Change nothing else in this file.
+
+---
+
+FIX 5 — RetailerNavbar.tsx — update the logo mark
+
+The retailer navbar shows "CN" as the brand mark.
+Find that text and replace it with "AX".
+Change nothing else in this file.
+
+---
+
+After all fixes:
+Confirm the / route renders Entrance.tsx with 
+no conditions.
+Confirm no file still contains "Campus Noticeboard" 
+in visible UI text.
+Confirm supabaseClient.ts and AppContext.tsx 
+were not touched.
+List every file modified.
+Push to GitHub.

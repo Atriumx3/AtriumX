@@ -8,8 +8,7 @@ export default function Entrance() {
     <div className="min-h-screen bg-slate-deep flex flex-col items-center justify-center gap-8 px-6">
       <div className="text-center">
         <h1 className="text-3xl">
-          <span className="text-cream font-sans font-medium">Campus</span>{' '}
-          <span className="text-gold font-bold">Noticeboard</span>
+          <span className="text-gold font-bold">Atrium</span>
         </h1>
         <p className="text-cream-muted text-sm mt-2">The residence economy, organised.</p>
       </div>

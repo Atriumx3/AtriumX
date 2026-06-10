@@ -15,7 +15,7 @@ export default function RetailerLanding() {
           Your business, inside the residence.
         </h1>
         <p className="text-cream-muted text-base max-w-sm mx-auto mt-4">
-          Campus Noticeboard connects students with what they need, right where they live. Get your business in front of them.
+          Atrium connects students with what they need, right where they live. Get your business in front of them.
         </p>
         <div className="flex gap-4 mt-8">
           <a

@@ -86,7 +86,7 @@ export default function StudentAuth() {
     <div className="min-h-screen bg-slate-deep flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
-          <span className="text-gold font-bold text-xl">CN</span>
+          <span className="text-gold font-bold text-xl">AX</span>
           <h1 className="text-cream font-bold text-2xl mt-2 font-serif">
             {mode === 'login' ? 'Welcome back' : 'Join your campus'}
           </h1>

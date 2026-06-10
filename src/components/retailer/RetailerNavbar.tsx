@@ -5,7 +5,7 @@ export default function RetailerNavbar() {
 
   return (
     <div className="sticky top-0 z-50 bg-slate-deep border-b border-slate-border px-4 h-14 flex items-center justify-between">
-      <span className="text-gold font-bold text-lg">CN</span>
+      <span className="text-gold font-bold text-lg">AX</span>
       <div className="flex items-center gap-4">
         <button onClick={() => navigate('/')} className="text-cream-muted text-sm">
           For Students
