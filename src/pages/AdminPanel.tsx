@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getListings, getAllListingsAdmin, getUserById, reportListing, approveListingById, rejectListingById } from '../services/dataService';
+import { getAllListingsAdmin, getUserById, reportListing, approveListingById, rejectListingById } from '../services/dataService';
 import type { Listing, Profile } from '../services/dataService';
 import { useApp } from '../context/AppContext';
 import StatusBadge from '../components/common/StatusBadge';
@@ -35,8 +35,8 @@ export default function AdminPanel() {
   const filtered = statusFilter === 'all' ? listings : listings.filter(l => l.status === statusFilter);
 
   const handleSuspend = async (id: string) => {
-    await reportListing(id);
-    const updated = await getListings();
+    if (currentUser) await reportListing(id, currentUser.id);
+    const updated = await getAllListingsAdmin();
     setListings(updated);
   };
 

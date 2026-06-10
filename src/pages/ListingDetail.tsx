@@ -51,9 +51,10 @@ export default function ListingDetail() {
   };
 
   const confirmMarkSold = async (buyerId: string | null) => {
-    const updated = await markListingAsSold(listing.id);
-    if (updated) {
-      setListing(updated);
+    const { error } = await markListingAsSold(listing.id);
+    if (!error) {
+      const refreshed = await getListingById(listing.id);
+      if (refreshed) setListing(refreshed);
       showToast('Listing marked as sold.', 'success');
     }
     if (buyerId && currentUser) {
@@ -67,20 +68,28 @@ export default function ListingDetail() {
   };
 
   const handleMarkFulfilled = async () => {
-    const updated = await renewListing(listing.id);
-    if (updated) { setListing(updated); showToast('Listing fulfilled and renewed for 7 days.', 'success'); }
+    const { error } = await renewListing(listing.id);
+    if (!error) {
+      const refreshed = await getListingById(listing.id);
+      if (refreshed) setListing(refreshed);
+      showToast('Listing fulfilled and renewed for 7 days.', 'success');
+    }
   };
 
   const handleRenew = async () => {
-    const updated = await renewListing(listing.id);
-    if (updated) { setListing(updated); showToast('Listing renewed for 7 days.', 'success'); }
+    const { error } = await renewListing(listing.id);
+    if (!error) {
+      const refreshed = await getListingById(listing.id);
+      if (refreshed) setListing(refreshed);
+      showToast('Listing renewed for 7 days.', 'success');
+    }
   };
 
   const handleReport = async () => {
-    const updated = await reportListing(listing.id);
-    if (updated) setListing(updated);
-    setShowReport(false);
+    if (!currentUser) return;
+    await reportListing(listing.id, currentUser.id);
     showToast('Report submitted. Thank you.', 'success');
+    setShowReport(false);
   };
 
   const handleInterested = async () => {
@@ -89,8 +98,10 @@ export default function ListingDetail() {
       navigate('/student');
       return;
     }
-    const conv = await startConversation(listing.id, currentUser.id);
-    navigate(`/chat/${conv.id}`);
+    const { conversationId } = await startConversation(listing.id, currentUser.id, listing.seller_id);
+    if (conversationId) {
+      navigate(`/chat/${conversationId}`);
+    }
   };
 
   const statusBanner = () => {
