@@ -1,12 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { CheckCheck } from 'lucide-react';
-import type { MockConversation } from '../../services/mock/mockMessages';
-import type { MockUser } from '../../services/mock/mockUsers';
+import type { Conversation, Profile } from '../../services/dataService';
 
 interface ChatListProps {
-  conversations: MockConversation[];
+  conversations: Conversation[];
   currentUserId: string;
-  users: Record<string, MockUser>;
+  users: Record<string, Profile>;
   listings: Record<string, { title: string }>;
 }
 
@@ -24,11 +23,11 @@ export default function ChatList({ conversations, currentUserId, users, listings
   return (
     <div>
       {conversations.map(conv => {
-        const otherId = conv.buyerId === currentUserId ? conv.sellerId : conv.buyerId;
+        const otherId = conv.buyer_id === currentUserId ? conv.seller_id : conv.buyer_id;
         const other = users[otherId];
-        const listing = listings[conv.listingId];
-        const lastMsg = conv.messages[conv.messages.length - 1];
-        const hasUnread = conv.messages.some(m => !m.read && m.senderId !== currentUserId);
+        const listing = listings[conv.listing_id];
+        const lastMsg = conv.messages && conv.messages.length > 0 ? conv.messages[conv.messages.length - 1] : null;
+        const hasUnread = conv.messages ? conv.messages.some(m => !m.read && m.sender_id !== currentUserId) : false;
 
         return (
           <button
@@ -40,9 +39,9 @@ export default function ChatList({ conversations, currentUserId, users, listings
           >
             <span
               className="w-10 h-10 rounded-full flex items-center justify-center text-cream text-sm font-bold flex-shrink-0"
-              style={{ backgroundColor: other?.avatarColor ?? '#1E3A4F' }}
+              style={{ backgroundColor: other?.avatar_color ?? '#1E3A4F' }}
             >
-              {other?.avatarInitials ?? '??'}
+              {other?.avatar_initials ?? '??'}
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-cream text-sm font-bold truncate">{listing?.title ?? 'Listing'}</p>
@@ -51,10 +50,10 @@ export default function ChatList({ conversations, currentUserId, users, listings
             <div className="flex flex-col items-end gap-1 flex-shrink-0">
               {lastMsg && (
                 <span className="text-cream-muted text-xs">
-                  {new Date(lastMsg.sentAt).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}
+                  {new Date(lastMsg.sent_at).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}
                 </span>
               )}
-              {conv.isResolved && <CheckCheck size={14} className="text-status-success" />}
+              {conv.is_resolved && <CheckCheck size={14} className="text-status-success" />}
               {hasUnread && <span className="w-2.5 h-2.5 bg-ember rounded-full" />}
             </div>
           </button>

@@ -15,10 +15,10 @@ export default function AdminPanel() {
   const [sellers, setSellers] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
-    if (currentUser && !currentUser.isAdmin) { navigate('/feed'); return; }
+    if (currentUser && !currentUser.is_admin) { navigate('/feed'); return; }
     getAllListingsAdmin().then(async all => {
       setListings(all);
-      const ids = [...new Set(all.map(l => l.sellerId))];
+      const ids = [...new Set(all.map(l => l.seller_id))];
       const map: Record<string, Profile> = {};
       await Promise.all(ids.map(async id => {
         const u = await getUserById(id);
@@ -28,9 +28,9 @@ export default function AdminPanel() {
     });
   }, [currentUser, navigate]);
 
-  if (!currentUser?.isAdmin) return null;
+  if (!currentUser?.is_admin) return null;
 
-  const flagged = listings.filter(l => l.reportCount >= 1).sort((a, b) => b.reportCount - a.reportCount);
+  const flagged = listings.filter(l => l.report_count >= 1).sort((a, b) => b.report_count - a.report_count);
 
   const filtered = statusFilter === 'all' ? listings : listings.filter(l => l.status === statusFilter);
 
@@ -41,7 +41,7 @@ export default function AdminPanel() {
   };
 
   const handleClear = (id: string) => {
-    setListings(prev => prev.map(l => l.id === id ? { ...l, reportCount: 0 } : l));
+    setListings(prev => prev.map(l => l.id === id ? { ...l, report_count: 0 } : l));
   };
 
   const handleApprove = async (id: string) => {

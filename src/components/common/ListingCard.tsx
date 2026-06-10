@@ -1,16 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { Package, Users } from 'lucide-react';
 import { useState } from 'react';
-import type { MockListing } from '../../services/mock/mockListings';
-import type { MockUser } from '../../services/mock/mockUsers';
+import type { Listing, Profile } from '../../services/dataService';
 import { CATEGORIES } from '../../services/mock/mockCategories';
 import VerifiedBadge from './VerifiedBadge';
 import StarRating from './StarRating';
 import ListingCountdown from '../student/ListingCountdown';
 
 interface ListingCardProps {
-  listing: MockListing;
-  seller: MockUser;
+  listing: Listing;
+  seller: Profile;
 }
 
 export default function ListingCard({ listing, seller }: ListingCardProps) {
@@ -29,7 +28,7 @@ export default function ListingCard({ listing, seller }: ListingCardProps) {
         </div>
       ) : (
         <img
-          src={listing.imageUrl}
+          src={listing.image_url ?? ''}
           alt={listing.title}
           className="w-full aspect-video object-cover"
           onError={() => setImgError(true)}
@@ -46,20 +45,20 @@ export default function ListingCard({ listing, seller }: ListingCardProps) {
         <div className="flex items-center gap-2 mt-1">
           <span
             className="w-6 h-6 rounded-full flex items-center justify-center text-cream text-[9px] font-bold flex-shrink-0"
-            style={{ backgroundColor: seller.avatarColor }}
+            style={{ backgroundColor: seller.avatar_color }}
           >
-            {seller.avatarInitials}
+            {seller.avatar_initials}
           </span>
-          <span className="text-cream-muted text-xs truncate">{seller.fullName}</span>
-          {seller.isVerified && <VerifiedBadge />}
-          <StarRating rating={seller.avgRating} size="xs" />
+          <span className="text-cream-muted text-xs truncate">{seller.full_name}</span>
+          {seller.is_verified && <VerifiedBadge />}
+          <StarRating rating={seller.avg_rating} size="xs" />
         </div>
         <div className="flex items-center justify-between mt-2">
           <span className="text-cream-muted text-xs flex items-center gap-1">
             <Users size={12} />
-            {listing.contactCount} interested
+            {listing.contact_count} interested
           </span>
-          <ListingCountdown expiresAt={listing.expiresAt} />
+          <ListingCountdown expiresAt={listing.expires_at} />
         </div>
       </div>
     </button>

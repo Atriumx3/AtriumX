@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import { getConversationsForUser, getConversationById, getUserById, getListingById, markConversationResolved, submitRating } from '../services/dataService';
-import type { MockConversation } from '../services/mock/mockMessages';
-import type { MockUser } from '../services/mock/mockUsers';
-import type { MockListing } from '../services/mock/mockListings';
+import type { Conversation, Profile } from '../services/dataService';
 import { useApp } from '../context/AppContext';
 import ChatList from '../components/student/ChatList';
 import ChatWindow from '../components/student/ChatWindow';
@@ -14,10 +12,10 @@ export default function ChatPage() {
   const { convId } = useParams<{ convId?: string }>();
   const navigate = useNavigate();
   const { currentUser, showToast } = useApp();
-  const [conversations, setConversations] = useState<MockConversation[]>([]);
-  const [users, setUsers] = useState<Record<string, MockUser>>({});
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [users, setUsers] = useState<Record<string, Profile>>({});
   const [listingTitles, setListingTitles] = useState<Record<string, string>>({});
-  const [activeConv, setActiveConv] = useState<MockConversation | null>(null);
+  const [activeConv, setActiveConv] = useState<Conversation | null>(null);
   const [showRateModal, setShowRateModal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -26,8 +24,8 @@ export default function ChatPage() {
     getConversationsForUser(currentUser.id).then(async convs => {
       setConversations(convs);
       const ids = new Set<string>();
-      convs.forEach(c => { ids.add(c.buyerId); ids.add(c.sellerId); ids.add(c.listingId); });
-      const userMap: Record<string, MockUser> = {};
+      convs.forEach(c => { ids.add(c.buyer_id); ids.add(c.seller_id); ids.add(c.listing_id); });
+      const userMap: Record<string, Profile> = {};
       const listingMap: Record<string, string> = {};
       await Promise.all([
         ...Array.from(ids).map(async id => {
@@ -35,8 +33,8 @@ export default function ChatPage() {
           if (u) userMap[id] = u;
         }),
         ...convs.map(async c => {
-          const l = await getListingById(c.listingId);
-          if (l) listingMap[c.listingId] = l.title;
+          const l = await getListingById(c.listing_id);
+          if (l) listingMap[c.listing_id] = l.title;
         }),
       ]);
       setUsers(userMap);
@@ -60,7 +58,7 @@ export default function ChatPage() {
 
   const handleRate = async (stars: number, comment: string) => {
     if (!activeConv || !currentUser) return;
-    await submitRating(activeConv.sellerId, stars, activeConv.listingId, currentUser.id);
+    await submitRating(activeConv.seller_id, stars, activeConv.listing_id, currentUser.id);
     setShowRateModal(false);
   };
 
@@ -93,9 +91,9 @@ export default function ChatPage() {
 
   // Conversation detail view
   if (!activeConv) return null;
-  const otherId = activeConv.buyerId === currentUser.id ? activeConv.sellerId : activeConv.buyerId;
+  const otherId = activeConv.buyer_id === currentUser.id ? activeConv.seller_id : activeConv.buyer_id;
   const other = users[otherId];
-  const isSeller = currentUser.id === activeConv.sellerId;
+  const isSeller = currentUser.id === activeConv.seller_id;
 
   return (
     <div className="min-h-screen bg-slate-deep flex flex-col">
@@ -105,16 +103,16 @@ export default function ChatPage() {
         </button>
         <span
           className="w-8 h-8 rounded-full flex items-center justify-center text-cream text-xs font-bold flex-shrink-0"
-          style={{ backgroundColor: other?.avatarColor ?? '#1E3A4F' }}
+          style={{ backgroundColor: other?.avatar_color ?? '#1E3A4F' }}
         >
-          {other?.avatarInitials ?? '??'}
+          {other?.avatar_initials ?? '??'}
         </span>
-        <span className="text-cream font-bold text-sm">{other?.fullName ?? 'User'}</span>
+        <span className="text-cream font-bold text-sm">{other?.full_name ?? 'User'}</span>
         <button
-          onClick={() => navigate(`/listing/${activeConv.listingId}`)}
+          onClick={() => navigate(`/listing/${activeConv.listing_id}`)}
           className="text-cream-muted text-xs truncate ml-auto max-w-[120px]"
         >
-          {listingTitles[activeConv.listingId] ?? 'Listing'}
+          {listingTitles[activeConv.listing_id] ?? 'Listing'}
         </button>
         <button
           onClick={() => setShowClearConfirm(true)}
@@ -125,7 +123,7 @@ export default function ChatPage() {
         </button>
       </div>
 
-      {isSeller && !activeConv.isResolved && (
+      {isSeller && !activeConv.is_resolved && (
         <div className="px-4 pt-3">
           <button
             onClick={handleResolved}
@@ -137,15 +135,15 @@ export default function ChatPage() {
       )}
 
       <div className="flex-1">
-        <ChatWindow conversation={activeConv} otherUser={other!} listingTitle={listingTitles[activeConv.listingId] ?? ''} />
+        <ChatWindow conversation={activeConv} otherUser={other!} listingTitle={listingTitles[activeConv.listing_id] ?? ''} />
       </div>
 
       {showRateModal && (
         <RateSellerModal
-          sellerId={activeConv.sellerId}
-          listingId={activeConv.listingId}
+          sellerId={activeConv.seller_id}
+          listingId={activeConv.listing_id}
           raterId={currentUser.id}
-          sellerName={other?.fullName ?? 'Seller'}
+          sellerName={other?.full_name ?? 'Seller'}
           onSkip={() => setShowRateModal(false)}
         />
       )}

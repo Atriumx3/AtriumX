@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
-import type { MockConversation, MockMessage } from '../../services/mock/mockMessages';
-import type { MockUser } from '../../services/mock/mockUsers';
+import type { Conversation, Message, Profile } from '../../services/dataService';
 import { sendMessage } from '../../services/dataService';
 import { useApp } from '../../context/AppContext';
 
@@ -12,14 +11,14 @@ function sanitizeMessage(content: string) {
 }
 
 interface ChatWindowProps {
-  conversation: MockConversation;
-  otherUser: MockUser;
+  conversation: Conversation;
+  otherUser: Profile;
   listingTitle: string;
 }
 
 export default function ChatWindow({ conversation, otherUser, listingTitle }: ChatWindowProps) {
   const { currentUser } = useApp();
-  const [messages, setMessages] = useState<MockMessage[]>(conversation.messages);
+  const [messages, setMessages] = useState<Message[]>(conversation.messages || []);
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -29,8 +28,10 @@ export default function ChatWindow({ conversation, otherUser, listingTitle }: Ch
 
   const handleSend = async () => {
     if (!input.trim() || !currentUser) return;
-    const msg = await sendMessage(conversation.id, currentUser.id, input.trim());
-    setMessages(prev => [...prev, msg]);
+    const { message } = await sendMessage(conversation.id, currentUser.id, input.trim());
+    if (message) {
+      setMessages(prev => [...prev, message]);
+    }
     setInput('');
   };
 
@@ -38,7 +39,7 @@ export default function ChatWindow({ conversation, otherUser, listingTitle }: Ch
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3 pb-24">
         {messages.map(msg => {
-          const isMine = msg.senderId === currentUser?.id;
+          const isMine = msg.sender_id === currentUser?.id;
           const displayContent = isMine ? msg.content : sanitizeMessage(msg.content);
 
           return (
@@ -57,7 +58,7 @@ export default function ChatWindow({ conversation, otherUser, listingTitle }: Ch
                 )}
               </div>
               <span className="text-cream-muted text-xs mt-1 px-1">
-                {new Date(msg.sentAt).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(msg.sent_at).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
           );

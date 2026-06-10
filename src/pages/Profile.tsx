@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getUserById, getUserListings, getListingById } from '../services/dataService';
-import type { MockUser } from '../services/mock/mockUsers';
-import type { MockListing } from '../services/mock/mockListings';
+import type { Profile, Listing } from '../services/dataService';
 import { useApp } from '../context/AppContext';
 import VerifiedBadge from '../components/common/VerifiedBadge';
 import StarRating from '../components/common/StarRating';
@@ -14,8 +13,8 @@ export default function Profile() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { currentUser } = useApp();
-  const [user, setUser] = useState<MockUser | null>(null);
-  const [listings, setListings] = useState<MockListing[]>([]);
+  const [user, setUser] = useState<Profile | null>(null);
+  const [listings, setListings] = useState<Listing[]>([]);
   const [showSold, setShowSold] = useState(false);
 
   useEffect(() => {
@@ -29,7 +28,7 @@ export default function Profile() {
   const isOwnProfile = currentUser?.id === user.id;
   const activeListings = listings.filter(l => l.status === 'active');
   const soldListings = listings.filter(l => l.status === 'sold');
-  const joinDate = new Date(user.joinedDate).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
+  const joinDate = new Date(user.joined_date).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
 
   return (
     <div className="min-h-screen bg-slate-deep pb-20">
@@ -37,22 +36,22 @@ export default function Profile() {
         <div className="flex items-center gap-3">
           <span
             className="w-16 h-16 rounded-full flex items-center justify-center text-cream text-xl font-bold"
-            style={{ backgroundColor: user.avatarColor }}
+            style={{ backgroundColor: user.avatar_color }}
           >
-            {user.avatarInitials}
+            {user.avatar_initials}
           </span>
           <div>
             <div className="flex items-center gap-1">
-              <span className="text-cream font-bold text-xl">{user.fullName}</span>
-              {user.isVerified && <VerifiedBadge />}
+              <span className="text-cream font-bold text-xl">{user.full_name}</span>
+              {user.is_verified && <VerifiedBadge />}
             </div>
-            <p className="text-cream-muted text-sm">{user.campus} · {user.residence}</p>
+            <p className="text-cream-muted text-sm">{user.residence}</p>
             <p className="text-cream-muted text-xs mt-1">
-              {user.totalListings} listings · {user.totalRatings} ratings · Joined {joinDate}
+              {user.total_listings} listings · {user.total_ratings} ratings · Joined {joinDate}
             </p>
             <div className="mt-1">
-              <StarRating rating={user.avgRating} size="sm" />
-              <span className="text-cream-muted text-xs ml-1">{user.avgRating.toFixed(1)} ({user.totalRatings} ratings)</span>
+              <StarRating rating={user.avg_rating} size="sm" />
+              <span className="text-cream-muted text-xs ml-1">{user.avg_rating.toFixed(1)} ({user.total_ratings} ratings)</span>
             </div>
           </div>
         </div>
@@ -98,11 +97,11 @@ export default function Profile() {
   );
 }
 
-function ListingCardWrapper({ listing }: { listing: MockListing }) {
-  const [seller, setSeller] = useState<MockUser | null>(null);
+function ListingCardWrapper({ listing }: { listing: Listing }) {
+  const [seller, setSeller] = useState<Profile | null>(null);
   useEffect(() => {
-    getUserById(listing.sellerId).then(u => u && setSeller(u));
-  }, [listing.sellerId]);
+    getUserById(listing.seller_id).then(u => u && setSeller(u));
+  }, [listing.seller_id]);
 
   if (!seller) return null;
   return <ListingCard listing={listing} seller={seller} />;

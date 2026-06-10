@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MoreVertical, Package, Users } from 'lucide-react';
 import { getListingById, getUserById, markListingAsSold, renewListing, reportListing, startConversation, getConversationsForUser, sendMessage } from '../services/dataService';
-import type { MockListing } from '../services/mock/mockListings';
-import type { MockUser } from '../services/mock/mockUsers';
+import type { Listing, Profile } from '../services/dataService';
 import { CATEGORIES } from '../services/mock/mockCategories';
 import { useApp } from '../context/AppContext';
 import VerifiedBadge from '../components/common/VerifiedBadge';
@@ -15,34 +14,34 @@ export default function ListingDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser, showToast } = useApp();
-  const [listing, setListing] = useState<MockListing | null>(null);
-  const [seller, setSeller] = useState<MockUser | null>(null);
+  const [listing, setListing] = useState<Listing | null>(null);
+  const [seller, setSeller] = useState<Profile | null>(null);
   const [imgError, setImgError] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showBuyerSelect, setShowBuyerSelect] = useState(false);
-  const [buyerCandidates, setBuyerCandidates] = useState<MockUser[]>([]);
+  const [buyerCandidates, setBuyerCandidates] = useState<Profile[]>([]);
 
   useEffect(() => {
     if (!id) return;
     getListingById(id).then(l => {
       if (!l) return;
       setListing(l);
-      getUserById(l.sellerId).then(s => s && setSeller(s));
+      getUserById(l.seller_id).then(s => s && setSeller(s));
     });
   }, [id]);
 
   if (!listing || !seller) return <div className="min-h-screen bg-slate-deep" />;
 
-  const isSeller = currentUser?.id === listing.sellerId;
+  const isSeller = currentUser?.id === listing.seller_id;
   const categoryLabel = CATEGORIES.find(c => c.id === listing.category)?.label ?? listing.category;
-  const joinDate = new Date(seller.joinedDate).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
+  const joinDate = new Date(seller.joined_date).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
 
   const handleMarkSold = async () => {
-    const convs = await getConversationsForUser(listing.sellerId);
-    const listingConvs = convs.filter(c => c.listingId === listing.id);
-    const buyerIds = [...new Set(listingConvs.map(c => c.buyerId))];
-    const buyers: MockUser[] = [];
+    const convs = await getConversationsForUser(listing.seller_id);
+    const listingConvs = convs.filter(c => c.listing_id === listing.id);
+    const buyerIds = [...new Set(listingConvs.map(c => c.buyer_id))];
+    const buyers: Profile[] = [];
     await Promise.all(buyerIds.map(async id => {
       const u = await getUserById(id);
       if (u) buyers.push(u);
@@ -58,10 +57,10 @@ export default function ListingDetail() {
       showToast('Listing marked as sold.', 'success');
     }
     if (buyerId && currentUser) {
-      const convs = await getConversationsForUser(listing.sellerId);
-      const conv = convs.find(c => c.listingId === listing.id && c.buyerId === buyerId);
+      const convs = await getConversationsForUser(listing.seller_id);
+      const conv = convs.find(c => c.listing_id === listing.id && c.buyer_id === buyerId);
       if (conv) {
-        await sendMessage(conv.id, 'system', `Hi! You recently bought from ${seller.fullName}. How was your experience? Tap below to leave a rating.`);
+        await sendMessage(conv.id, 'system', `Hi! You recently bought from ${seller.full_name}. How was your experience? Tap below to leave a rating.`);
       }
     }
     setShowBuyerSelect(false);
@@ -133,7 +132,7 @@ export default function ListingDetail() {
           </div>
         ) : (
           <img
-            src={listing.imageUrl}
+            src={listing.image_url ?? ''}
             alt={listing.title}
             className="w-full aspect-video object-cover"
             onError={() => setImgError(true)}
@@ -146,7 +145,7 @@ export default function ListingDetail() {
           </span>
           <h1 className="text-cream font-bold text-2xl font-serif">{listing.title}</h1>
           <p className="text-gold font-bold text-3xl">R {listing.price}</p>
-          <ListingCountdown expiresAt={listing.expiresAt} />
+          <ListingCountdown expiresAt={listing.expires_at} />
 
           <hr className="border-slate-border" />
           <p className="text-cream text-sm leading-relaxed">{listing.description}</p>
@@ -160,27 +159,27 @@ export default function ListingDetail() {
             >
               <span
                 className="w-10 h-10 rounded-full flex items-center justify-center text-cream text-sm font-bold flex-shrink-0"
-                style={{ backgroundColor: seller.avatarColor }}
+                style={{ backgroundColor: seller.avatar_color }}
               >
-                {seller.avatarInitials}
+                {seller.avatar_initials}
               </span>
               <div>
                 <div className="flex items-center gap-1">
-                  <span className="text-cream font-bold">{seller.fullName}</span>
-                  {seller.isVerified && <VerifiedBadge />}
+                  <span className="text-cream font-bold">{seller.full_name}</span>
+                  {seller.is_verified && <VerifiedBadge />}
                 </div>
-                <p className="text-cream-muted text-xs">{seller.totalRatings} ratings · Joined {joinDate}</p>
-                <StarRating rating={seller.avgRating} size="sm" />
+                <p className="text-cream-muted text-xs">{seller.total_ratings} ratings · Joined {joinDate}</p>
+                <StarRating rating={seller.avg_rating} size="sm" />
               </div>
             </button>
           </div>
 
           <div className="flex items-center gap-3">
             <span className="text-cream-muted text-xs flex items-center gap-1">
-              <Users size={12} /> Contacted {listing.contactCount} times
+              <Users size={12} /> Contacted {listing.contact_count} times
             </span>
             <span className="text-cream-muted text-xs">
-              Posted {new Date(listing.createdAt).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}
+              Posted {new Date(listing.created_at).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}
             </span>
           </div>
         </div>
@@ -189,7 +188,7 @@ export default function ListingDetail() {
       <div className="fixed bottom-0 left-0 right-0 bg-slate-deep border-t border-slate-border px-4 py-3 max-w-md mx-auto z-40">
         {isSeller ? (
           <div className="flex gap-3">
-            {listing.listingType === 'single' ? (
+            {listing.listing_type === 'single' ? (
               <button
                 onClick={handleMarkSold}
                 className="flex-1 bg-transparent border border-slate-border text-cream rounded-xl py-3 font-bold text-base"
@@ -244,11 +243,11 @@ export default function ListingDetail() {
                   >
                     <span
                       className="w-8 h-8 rounded-full flex items-center justify-center text-cream text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: buyer.avatarColor }}
+                      style={{ backgroundColor: buyer.avatar_color }}
                     >
-                      {buyer.avatarInitials}
+                      {buyer.avatar_initials}
                     </span>
-                    <span className="text-cream text-sm font-bold">{buyer.fullName}</span>
+                    <span className="text-cream text-sm font-bold">{buyer.full_name}</span>
                   </button>
                 ))}
               </div>

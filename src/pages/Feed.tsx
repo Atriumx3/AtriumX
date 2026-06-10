@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { getListings, getUserById } from '../services/dataService';
-import type { MockListing } from '../services/mock/mockListings';
-import type { MockUser } from '../services/mock/mockUsers';
+import type { Listing, Profile } from '../services/dataService';
 import { useApp } from '../context/AppContext';
 import Navbar from '../components/common/Navbar';
 import BottomNav from '../components/common/BottomNav';
@@ -14,15 +13,15 @@ import EmptyState from '../components/common/EmptyState';
 export default function Feed() {
   const navigate = useNavigate();
   const { activeCategory, searchQuery, setSearchQuery, currentUser } = useApp();
-  const [listings, setListings] = useState<MockListing[]>([]);
-  const [sellers, setSellers] = useState<Record<string, MockUser>>({});
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [sellers, setSellers] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
     getListings().then(async all => {
       const active = all.filter(l => l.status === 'active');
       setListings(active);
-      const sellerIds = [...new Set(active.map(l => l.sellerId))];
-      const sellerMap: Record<string, MockUser> = {};
+      const sellerIds = [...new Set(active.map(l => l.seller_id))];
+      const sellerMap: Record<string, Profile> = {};
       await Promise.all(sellerIds.map(async id => {
         const user = await getUserById(id);
         if (user) sellerMap[id] = user;
@@ -71,14 +70,14 @@ export default function Feed() {
             <ListingCard
               key={listing.id}
               listing={listing}
-              seller={sellers[listing.sellerId] ?? {
+              seller={sellers[listing.seller_id] ?? {
                 id: 'unknown',
-                fullName: 'Unknown',
-                avatarInitials: '??',
-                avatarColor: '#1E3A4F',
-                isVerified: false,
-                avgRating: 0,
-              }}
+                full_name: 'Unknown',
+                avatar_initials: '??',
+                avatar_color: '#1E3A4F',
+                is_verified: false,
+                avg_rating: 0,
+              } as Profile}
             />
           ))
         )}
