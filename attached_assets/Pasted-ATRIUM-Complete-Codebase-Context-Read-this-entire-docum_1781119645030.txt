@@ -1,0 +1,598 @@
+ATRIUM — Complete Codebase Context
+Read this entire document before touching any file.
+This is not a summary. Every detail here reflects what
+is actually in the code.
+
+WHAT THIS APP IS
+Atrium (currently titled "Campus Noticeboard" in the UI)
+is a mobile-first marketplace web app for university
+students. Students sell things to each other — food,
+textbooks, laundry services, tutoring — from within
+their residence building. Local businesses can advertise
+to those students through a separate business-facing side.
+An admin can approve, reject, and moderate listings.
+The app is live at atriumx.pages.dev
+It is deployed on Cloudflare Pages.
+The backend is Supabase (PostgreSQL + Auth).
+
+TECH STACK — DO NOT CHANGE ANY OF THESE
+
+React 18 + TypeScript
+Vite (build tool)
+Tailwind CSS with custom design tokens
+Supabase JS client v2
+React Router DOM v7 using HashRouter
+Lucide React icons (version 0.344.0)
+
+HashRouter means every URL contains a hash symbol.
+Example: https://atriumx.pages.dev/#/feed
+This is intentional and must never be changed to
+BrowserRouter.
+
+CUSTOM TAILWIND COLOR TOKENS
+These are defined in tailwind.config.js. They are not
+standard Tailwind colors. Never replace them with
+standard Tailwind equivalents. Never change their values.
+Background colors:
+
+bg-slate-deep       — #0D2538 — main page background
+bg-slate-card       — #0F2D45 — card and surface background
+border-slate-border — #1E3A4F — all borders
+
+Text colors:
+
+text-cream          — #FFF7ED — primary text
+text-cream-muted    — #C9B99A — secondary/muted text
+text-gold           — #FBBF24 — brand accent, prices
+text-ember          — #F97316 — CTA buttons, active states
+text-teal-light     — #2A7A9A — links, selected states
+
+Background accent colors:
+
+bg-ember            — #F97316 — primary action buttons
+bg-teal-primary     — #1A5F7A — business cards, highlights
+teal-faint          — #1A5F7A22 — subtle teal background
+
+Status colors:
+
+text/bg-status-success  — #22C55E — active, approved
+text/bg-status-danger   — #EF4444 — error, suspended, danger
+text/bg-status-warning  — #F59E0B — expiring, pending
+
+Font families:
+
+font-sans  — DM Sans (body text)
+font-serif — DM Serif Display (headings)
+
+
+FILE STRUCTURE — EXACT PATHS
+src/
+  App.tsx                         routing only
+  main.tsx                        entry point, mounts App
+  index.css                       global styles
+  vite-env.d.ts                   TypeScript env types
+
+  context/
+    AppContext.tsx                 global state provider
+
+  services/
+    supabaseClient.ts             creates Supabase client
+    dataService.ts                ALL database functions
+    mock/
+      mockCategories.ts           CATEGORIES array — still used
+      mockListings.ts             unused — do not touch
+      mockUsers.ts                unused — do not touch
+      mockMessages.ts             unused — do not touch
+
+  pages/
+    Entrance.tsx                  first page anyone sees
+    StudentAuth.tsx               login and register
+    Feed.tsx                      listing feed
+    ListingDetail.tsx             single listing view
+    PostListing.tsx               create a listing form
+    ChatPage.tsx                  messaging
+    Profile.tsx                   user profile
+    AdminPanel.tsx                admin moderation
+    RetailerLanding.tsx           business landing page
+    RetailerSignup.tsx            business application form
+
+  components/
+    common/
+      Navbar.tsx                  top bar
+      BottomNav.tsx               bottom navigation
+      CategoryChips.tsx           category filter pills
+      ListingCard.tsx             listing card in feed
+      EmptyState.tsx              empty state component
+      StarRating.tsx              star display
+      StatusBadge.tsx             listing status pill
+      VerifiedBadge.tsx           verified tick icon
+    student/
+      ChatList.tsx                conversation list
+      ChatWindow.tsx              open conversation
+      ListingCountdown.tsx        expiry countdown
+      ListingImageUpload.tsx      photo upload input
+      RateSellerModal.tsx         rating modal
+      ReportModal.tsx             report listing modal
+    retailer/
+      PricingCard.tsx             pricing tier card
+      RetailerNavbar.tsx          retailer side navbar
+      StatsBanner.tsx             stats display strip
+
+ENVIRONMENT VARIABLES
+The app requires two environment variables. They must
+exist in Cloudflare Pages settings AND be available
+at build time for Vite to embed them.
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+These are read in supabaseClient.ts as:
+import.meta.env.VITE_SUPABASE_URL
+import.meta.env.VITE_SUPABASE_ANON_KEY
+Never hardcode these values anywhere in the code.
+
+SUPABASE DATABASE — ALL TABLES AND COLUMNS
+profiles
+One row per registered student. Created automatically
+by a database trigger when a user signs up via
+Supabase Auth.
+id              uuid — matches auth.users id
+full_name       text
+email           text
+residence       text — building name, free text
+avatar_initials text — two uppercase letters
+avatar_color    text — hex color string
+avg_rating      decimal — recalculated by database trigger
+total_ratings   integer
+total_listings  integer
+joined_date     date
+is_verified     boolean — manually set by admin
+is_admin        boolean — manually set by admin
+plan            text — ghost | visible | loud | unmissable
+plan_expires_at timestamptz — null for ghost tier
+created_at      timestamptz
+ALL PROFILE PROPERTIES ARE SNAKE_CASE.
+Never use camelCase versions. These are wrong and will
+cause runtime crashes:
+avatarColor     → correct: avatar_color
+avatarInitials  → correct: avatar_initials
+isVerified      → correct: is_verified
+isAdmin         → correct: is_admin
+fullName        → correct: full_name
+joinedDate      → correct: joined_date
+totalRatings    → correct: total_ratings
+totalListings   → correct: total_listings
+avgRating       → correct: avg_rating
+planExpiresAt   → correct: plan_expires_at
+listings
+id              uuid
+seller_id       uuid — references profiles.id
+title           text
+description     text
+price           decimal
+category        text — matches CATEGORIES id values
+custom_category text — only filled when category = 'other'
+image_url       text — public Supabase Storage URL
+video_url       text — null unless unmissable plan
+residence       text — copied from seller profile
+status          text — pending | active | sold |
+suspended | expired
+listing_type    text — single | ongoing
+report_count    integer — incremented by database trigger
+contact_count   integer
+created_at      timestamptz
+expires_at      timestamptz
+Status meanings:
+
+pending   — submitted, awaiting admin approval, hidden
+from feed
+active    — approved and visible in feed
+sold      — marked sold by seller, hidden from feed
+suspended — removed by admin
+expired   — past expires_at date, auto-set by pg_cron
+
+listing_type meanings:
+
+single    — one item, closes permanently when sold
+ongoing   — recurring service, renews when fulfilled
+
+conversations
+id          uuid
+listing_id  uuid — references listings.id
+buyer_id    uuid — references profiles.id
+seller_id   uuid — references profiles.id
+is_resolved boolean
+created_at  timestamptz
+One conversation per buyer per listing. Enforced by
+unique constraint on (listing_id, buyer_id).
+messages
+id              uuid
+conversation_id uuid — references conversations.id
+sender_id       uuid — references profiles.id
+MUST be a real profile id.
+Never pass 'system' or any
+string that is not a real uuid.
+content         text
+read            boolean
+sent_at         timestamptz
+ratings
+id          uuid
+seller_id   uuid — references profiles.id
+buyer_id    uuid — references profiles.id
+listing_id  uuid — references listings.id
+stars       integer — 1 to 5
+comment     text — optional
+created_at  timestamptz
+One rating per buyer per listing. Enforced by unique
+constraint on (listing_id, buyer_id).
+When a new rating is inserted a database trigger
+automatically recalculates the seller's avg_rating
+and total_ratings in the profiles table.
+reports
+id          uuid
+listing_id  uuid — references listings.id
+reporter_id uuid — references profiles.id
+reason      text — optional
+created_at  timestamptz
+When a new report is inserted a database trigger
+increments report_count on the listing. When
+report_count reaches 2 the listing is automatically
+suspended by the same trigger.
+notifications
+id              uuid
+user_id         uuid — references profiles.id
+message         text
+type            text — message | rating_request |
+listing_approved |
+listing_expired |
+listing_rejected
+read            boolean
+listing_id      uuid — optional reference
+conversation_id uuid — optional reference
+created_at      timestamptz
+business_profiles
+id                   uuid
+business_name        text
+business_type        text
+custom_business_type text — only when type = 'other'
+contact_person       text
+email                text
+phone                text
+selected_package     text — noticeboard | featured |
+campus_partner
+description          text
+status               text — pending | approved | rejected
+created_at           timestamptz
+approved_at          timestamptz — null until approved
+
+DATASERVICE.TS — ALL EXPORTED FUNCTIONS
+This is the only file that talks to Supabase directly
+for data operations. All other files import from here.
+Do not call supabase directly from pages or components
+except for real-time subscriptions and notifications
+which are the only exceptions.
+AUTH FUNCTIONS:
+loginWithEmail(email, password)
+→ Promise<{ user: Profile | null, error: string | null }>
+registerWithEmail(email, password, fullName, residence)
+→ Promise<{ user: Profile | null, error: string | null }>
+logout()
+→ Promise<{ error: string | null }>
+getCurrentUser()
+→ Promise<Profile | null>
+USER FUNCTIONS:
+getUserById(id)
+→ Promise<Profile | null>
+getUserListings(userId)
+→ Promise<Listing[]>
+LISTING FUNCTIONS:
+getListings(filters?)
+filters: { category?: string, search?: string }
+→ Promise<Listing[]>
+Only returns listings with status = 'active'
+getListingById(id)
+→ Promise<Listing | null>
+createListing(listingData)
+listingData: {
+sellerId, title, description, price,
+category, customCategory?, imageUrl?,
+videoUrl?, residence, listingType, plan
+}
+Sets status to 'pending' always.
+Calculates expires_at from plan:
+ghost = 3 days
+visible = 7 days
+loud = 14 days
+unmissable = 30 days
+→ Promise<{ listing: Listing | null, error: string | null }>
+markListingAsSold(id)
+→ Promise<{ error: string | null }>
+renewListing(id)
+Updates status to 'active' and resets expires_at
+to now + 7 days.
+→ Promise<{ error: string | null }>
+reportListing(listingId, reporterId)
+Both arguments required. reporterId must be a real
+profile id. Never pass 'system' or a hardcoded string.
+→ Promise<{ error: string | null }>
+MESSAGE FUNCTIONS:
+getConversationsForUser(userId)
+→ Promise<Conversation[]>
+getConversationById(convId)
+Returns conversation with its messages array attached.
+→ Promise<Conversation | null>
+sendMessage(convId, senderId, content)
+senderId must be a real profile id. Never pass 'system'.
+→ Promise<{ message: Message | null, error: string | null }>
+startConversation(listingId, buyerId, sellerId)
+Checks if conversation already exists first.
+If yes, returns existing id. If no, creates new.
+→ Promise<{ conversationId: string | null,
+error: string | null }>
+Access the id as result.conversationId
+NOT as result.id — that property does not exist.
+markConversationResolved(convId)
+→ Promise<{ error: string | null }>
+Returns { error } NOT a Conversation object.
+Do not try to setActiveConv with the return value.
+RATING FUNCTIONS:
+submitRating(sellerId, buyerId, listingId, stars, comment?)
+Argument order is exactly: sellerId, buyerId,
+listingId, stars, comment
+Returns { error: string | null }
+NOT { success }. There is no success property.
+ADMIN FUNCTIONS:
+getPendingListings()
+→ Promise<Listing[]>
+approveListingById(id)
+→ Promise<{ error: string | null }>
+rejectListingById(id)
+→ Promise<{ error: string | null }>
+getAllListingsAdmin()
+Returns all listings regardless of status.
+→ Promise<Listing[]>
+NOTIFICATION FUNCTIONS:
+getUnreadNotifications(userId)
+→ Promise<notification[]>
+markNotificationRead(id)
+→ Promise<void>
+createNotification({ userId, message, type,
+listingId?, conversationId? })
+→ Promise<void>
+Use this instead of sendMessage when you need to
+notify a user about a transaction. Never use
+sendMessage with sender_id = 'system'.
+BUSINESS FUNCTIONS:
+submitBusinessApplication(data)
+data: { businessName, businessType,
+customBusinessType?, contactPerson,
+email, phone, selectedPackage, description }
+→ Promise<{ error: string | null }>
+
+APPCONTEXT.TSX — GLOBAL STATE
+Provides these values to all components via useApp():
+currentUser       Profile | null
+setCurrentUser    (user: Profile | null) => void
+isStudentSide     boolean
+setIsStudentSide  (val: boolean) => void
+activeCategory    string — current feed filter
+setActiveCategory (cat: string) => void
+searchQuery       string — current search text
+setSearchQuery    (q: string) => void
+unreadMessageCount number
+setUnreadMessageCount (count: number) => void
+toasts            Toast[]
+showToast         (message, type?) => void
+redirectAfterLogin string | null
+setRedirectAfterLogin (url: string | null) => void
+On mount AppContext calls getCurrentUser() and subscribes
+to supabase.auth.onAuthStateChange so currentUser updates
+automatically when someone logs in or out.
+
+ROUTING — APP.TSX
+Uses HashRouter. All paths are preceded by # in browser.
+Public routes — no login required:
+/          → Entrance.tsx
+/student   → StudentAuth.tsx
+/feed      → Feed.tsx
+/listing/:id → ListingDetail.tsx
+/profile/:userId → Profile.tsx
+/retailer  → RetailerLanding.tsx
+/retailer/signup → RetailerSignup.tsx
+Protected routes — redirect to /student if not logged in:
+/post      → PostListing.tsx
+/chat      → ChatPage.tsx
+/chat/:convId → ChatPage.tsx
+Admin only route — redirect to /feed if not admin:
+/admin     → AdminPanel.tsx
+
+HOW EACH PAGE WORKS
+Entrance.tsx
+First page anyone sees. Shows two cards:
+Card 1 — "I'm a Student" → navigates to /student
+Card 2 — "I'm a Business" → navigates to /retailer
+No logic. No auth checks. Pure navigation.
+StudentAuth.tsx
+Handles both login and register with a mode toggle.
+Register form fields: fullName, email, password,
+confirmPassword, residence.
+Login form fields: email, password.
+On successful login: calls setCurrentUser, navigates
+to redirectAfterLogin or /feed.
+On successful register: calls setCurrentUser, requests
+browser notification permission, navigates to /feed.
+Validates email format only — no domain restrictions.
+Feed.tsx
+Loads all active listings from getListings().
+For each listing also fetches the seller profile via
+getUserById to display seller info on each card.
+Filters listings client-side by activeCategory and
+searchQuery from AppContext.
+Shows CategoryChips at top for category filtering.
+Shows search bar.
+Shows listing count.
+If empty shows EmptyState with "Post a Listing" button
+that goes to /post if logged in or /student if not.
+ListingDetail.tsx
+Loads listing by id from URL params.
+Loads seller profile for that listing.
+Shows listing image, title, price, countdown, description.
+Shows seller card with avatar, name, rating, residence.
+Action buttons at bottom:
+If viewer IS the seller:
+Single listing → "Mark as Sold" button
+Opens "Who bought this?" modal showing all buyers
+who started a conversation about this listing.
+Seller picks a buyer or skips.
+On pick: marks sold + sends notification to buyer
+via createNotification (not sendMessage).
+On skip: just marks sold.
+Ongoing listing → "Mark as Fulfilled" button
+Calls renewListing which resets expires_at.
+Both types also show "Renew Listing" button.
+If viewer is NOT the seller and listing is active:
+"I'm Interested — Message Seller" button.
+If not logged in: saves listing id to localStorage
+under key 'pendingListingId' then navigates to /student.
+If logged in: calls startConversation then navigates
+to /chat/[conversationId] using result.conversationId.
+Three dot menu in top right → Report listing option.
+Report calls reportListing(listing.id, currentUser.id).
+PostListing.tsx
+Protected route — must be logged in.
+Form fields: photo (required), title, category dropdown,
+custom category text (shown only when category = 'other'),
+listing type toggle (single/ongoing), price, description,
+residence (text field).
+Photo upload is handled by ListingImageUpload component.
+On submit calls createListing passing all fields plus
+currentUser.plan for expiry calculation.
+No campus field — Profile has no campus property.
+After submit shows toast and navigates to /feed.
+ChatPage.tsx
+Protected route — must be logged in.
+Has two views controlled by whether convId is in URL:
+List view (/chat):
+Shows all conversations for currentUser via
+getConversationsForUser. Rendered by ChatList component.
+Each conversation shows the other person and listing title.
+Conversation view (/chat/:convId):
+Shows the open conversation via ChatWindow component.
+Top bar shows other person's avatar and name, listing
+title link, and Clear button (Trash2 icon).
+Clear button shows confirmation modal. On confirm clears
+messages array in local state only — not from database.
+If currentUser is the seller and conversation is not
+resolved: shows "Mark as Resolved" button.
+Clicking it calls markConversationResolved and updates
+activeConv.is_resolved to true in local state.
+Return value is { error } — not a Conversation object.
+RateSellerModal shown when showRateModal is true.
+ChatWindow.tsx (component)
+Receives conversation, otherUser, listingTitle as props.
+Displays messages array. Sends new messages via sendMessage.
+Phone numbers in received messages are automatically
+replaced with a warning string by sanitizeMessage.
+Messages do not update in real time yet — only updates
+when sender sends a message themselves.
+Profile.tsx
+Public route — visible without login.
+Loads user by userId from URL params.
+Shows avatar, name, residence, rating, joined date.
+Shows active listings and sold listings (collapsible).
+If viewing own profile shows "Edit Profile" button
+(currently non-functional, decorative).
+AdminPanel.tsx
+Admin only. Redirects non-admins to /feed.
+Three tabs:
+Flagged — listings with report_count >= 1, sorted by
+count. Each row has Suspend and Clear buttons.
+Suspend calls reportListing(id, currentUser.id).
+All Listings — all listings with status filter chips.
+Pending Approval — listings with status = 'pending'.
+Each row has Approve and Reject buttons.
+Approve calls approveListingById.
+Reject calls rejectListingById.
+RetailerLanding.tsx
+Public business-facing landing page.
+Shows hero section, stats banner, how it works steps,
+pricing cards for three business tiers:
+Noticeboard R150/week
+Featured R350/week
+Campus Partner R800/month
+Each pricing card CTA navigates to
+/retailer/signup?tier=[tierName].
+RetailerSignup.tsx
+Public business application form.
+Reads tier from URL query param and pre-selects package.
+Form fields: businessName, businessType (dropdown with
+Other option), contactName, email, phone, package,
+description.
+handleSubmit currently console.logs and sets submitted
+to true. Does NOT save to Supabase yet — this is a bug.
+On submitted = true shows success confirmation.
+
+CATEGORIES — mockCategories.ts
+This file is NOT mock data. It is a real static list
+used throughout the app. Do not delete it.
+Do not move it. Do not rename it.
+CATEGORIES array contains objects with:
+id     — used as listing.category value in database
+label  — displayed in UI
+icon   — string matching a Lucide icon name
+Category ids: all, food, laundry, textbooks, tutoring,
+electronics, clothing, transport, other
+
+REAL-TIME MESSAGING
+ChatWindow.tsx does not yet have a Supabase real-time
+subscription. Messages only appear when the current
+user sends one. To fix this a useEffect subscribing to
+postgres_changes on the messages table must be added
+to ChatWindow.tsx, filtering by conversation_id.
+Import supabase directly from supabaseClient.ts in
+that file for this purpose only.
+
+STUDENT PLAN TIERS
+Stored in profiles.plan column. Controls listing expiry.
+ghost       — free, listings expire in 3 days
+visible     — R29/month, 7 days
+loud        — R79/month, 14 days
+unmissable  — R149/month, 30 days
+Plan is currently not enforced in the UI — all users
+post as their stored plan tier. Ghost tier restrictions
+(no photo, no chat) are not yet implemented.
+
+WHAT IS NOT YET BUILT
+These features are designed and discussed but not in
+the code yet. Do not invent them. Do not add them
+unless explicitly asked:
+
+Plan selection screen before posting a listing
+Ghost tier photo and chat restrictions
+Notification bell dropdown in Navbar
+Real-time message subscription in ChatWindow
+Business signup saving to Supabase
+Payment processing
+Edit profile functionality
+The "Other" business type text field in RetailerSignup
+
+
+ABSOLUTE RULES
+
+Never change any Tailwind class names or color tokens
+Never change database table or column names
+Never change routing paths in App.tsx
+Never change the HashRouter to BrowserRouter
+Never rewrite a file from scratch — only change
+what is explicitly asked
+Never add new npm dependencies
+Never call supabase directly from a page or component
+except for real-time subscriptions and notification
+inserts — all other database calls go through
+dataService.ts
+Never use camelCase for Profile properties —
+always snake_case
+Never pass 'system' as a sender_id to sendMessage —
+it violates the database foreign key constraint
+The mock/ folder exists and must not be deleted —
+mockCategories.ts is actively used
+All changes must be pushed to GitHub after completion
+List every file modified at the end of every task
