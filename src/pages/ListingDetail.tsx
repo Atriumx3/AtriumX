@@ -228,12 +228,16 @@ export default function ListingDetail() {
             </button>
           </div>
         ) : listing.status === 'active' ? (
-          <button
-            onClick={handleInterested}
-            className="bg-ember text-white rounded-xl py-3 font-bold text-base w-full"
-          >
-            I'm Interested — Message Seller
-          </button>
+          seller.plan === 'ghost' ? (
+            <p className="text-cream-muted text-sm text-center py-3">This seller is on the Ghost plan. Contact is not available.</p>
+          ) : (
+            <button
+              onClick={handleInterested}
+              className="bg-ember text-white rounded-xl py-3 font-bold text-base w-full"
+            >
+              I'm Interested — Message Seller
+            </button>
+          )
         ) : (
           <button disabled className="bg-ember text-white rounded-xl py-3 font-bold text-base w-full opacity-40 cursor-not-allowed">
             Listing Unavailable

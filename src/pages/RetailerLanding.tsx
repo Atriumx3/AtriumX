@@ -140,7 +140,7 @@ export default function RetailerLanding() {
         <p className="text-cream-muted text-sm mt-2">
           We work with businesses that genuinely serve students. Reach out directly.
         </p>
-        <p className="text-gold font-bold mt-4">hello@campusnoticeboard.co.za</p>
+        <p className="text-gold font-bold mt-4">hello@atriumx.co.za</p>
       </section>
     </div>
   );

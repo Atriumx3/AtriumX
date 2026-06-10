@@ -1,0 +1,281 @@
+AtriumX — Full Fix Prompt
+WHO YOU ARE AND WHAT THIS APP IS
+AtriumX is a mobile-first React/TypeScript student marketplace. Students at university
+residences buy, sell, and offer services to each other. Businesses advertise to
+students. An admin moderates listings. Backend is Supabase. Deployed on Cloudflare
+Pages using HashRouter.
+CRITICAL RULES — READ BEFORE TOUCHING ANYTHING
+Rule 1 — No creativity.
+Do not add anything not listed in this prompt. Do not improve anything not listed.
+Do not rename variables, restructure components, or reorganise files unless explicitly
+required by a fix below.
+Rule 2 — Before applying any fix, check every angle.
+For each fix, ask yourself: could this change break any other part of the app? If yes,
+find a different approach that achieves the fix without the side effect. If no safe
+approach exists, report the conflict and do not apply the fix.
+Rule 3 — No file rewrites unless stated.
+Only modify the specific lines that need changing. If a fix says replace a function,
+replace only that function.
+Rule 4 — Custom Tailwind tokens are intentional.
+bg-slate-deep, bg-slate-card, slate-border, text-cream, text-cream-muted, text-gold,
+text-ember, bg-ember, teal-primary, teal-light, teal-faint, status-success,
+status-danger, status-warning — do not change these. Do not replace them with standard
+Tailwind classes.
+Rule 5 — Do not change routing.
+The route structure in App.tsx is correct. Do not add, remove, or modify any routes.
+Rule 6 — Database field names are snake_case.
+The Profile type uses: full_name, avatar_initials, avatar_color, is_verified,
+is_admin, avg_rating, total_ratings, total_listings, joined_date, plan,
+plan_expires_at. Never use camelCase versions of these.
+Rule 7 — Push to GitHub when all fixes are complete.
+List every file modified at the end. Do not push partial work.
+Rule 8 — If a fix would create a new crash or regression, stop and report it.
+Do not proceed with a fix that breaks something else. Find an alternative approach
+first.
+
+TECH STACK
+
+React 18 + TypeScript + Vite
+Tailwind CSS with custom tokens
+Supabase JS v2 (auth + database + storage + realtime)
+HashRouter (React Router DOM v6)
+Cloudflare Pages deployment
+
+DATABASE TABLES
+profiles, listings, conversations, messages, ratings, reports, notifications,
+business_profiles
+
+THE FIXES — IN ORDER OF PRIORITY
+FIX T01 — supabaseClient.ts must not crash at module load
+Why this matters: If this file throws synchronously, every file that imports it
+also fails. AppContext, dataService, and every page collapse. The result is a blank
+screen that no error boundary can catch.
+What to do: Replace the entire file with this exact content:
+typescriptimport { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : createClient(
+      'https://placeholder.supabase.co',
+      'placeholder-key'
+    );
+Side effect check: Every file that imports supabase will now receive a valid
+client object instead of an undefined or thrown error. The placeholder client will
+fail on actual requests (returning network errors) but will not crash the module
+graph. This is safe.
+
+FIX F01 — Entrance page must load first with no conditions
+What to do: In App.tsx find the route for path="/". Confirm it renders Entrance
+with absolutely no conditions, no auth checks, and no Navigate components. If any
+redirect exists on this route, remove it. The route must be exactly:
+tsx<Route path="/" element={<Entrance />} />
+Do not change any other route.
+
+FIX T10 — Remove all Campus Noticeboard and Wits references
+What to do: Search every file for these strings and replace in visible UI only:
+
+"Campus Noticeboard" → "Atrium"
+"CN" used as brand text → "AX"
+"Wits" in any visible label, heading, or placeholder → remove or replace with
+"your university"
+The title tag in index.html → change to "Atrium"
+Any placeholder or label referencing Wits email format → remove
+
+Do not change variable names, function names, or class names. Only visible UI text.
+
+FIX T02 — Real authentication connected to Supabase
+What to do: Read dataService.ts. Confirm loginWithEmail calls
+supabase.auth.signInWithPassword and registerWithEmail calls supabase.auth.signUp.
+If either function uses mock data or skips the Supabase call, replace it with the
+real implementation. The register function must also insert into the profiles table
+if the database trigger has not yet created the row.
+Side effect check: If you change these functions, confirm StudentAuth.tsx still
+calls them correctly and handles the returned error field.
+
+FIX T03 — Profile pulls from real database
+What to do: Confirm getUserById fetches from the Supabase profiles table using
+supabase.from('profiles').select('*').eq('id', id).single(). If it returns mock
+data, replace it. Confirm getCurrentUser calls supabase.auth.getUser then passes
+the user id to getUserById.
+
+FIX F01 — Entrance page loads first
+Already covered in routing fix above. Confirm Entrance.tsx renders the two entry
+cards with no API calls, no auth checks, and no Supabase imports.
+
+FIX F02 — Login rejects accounts that do not exist
+What to do: Confirm loginWithEmail in dataService.ts returns an error when
+Supabase auth rejects the credentials. Confirm StudentAuth.tsx displays that error
+inline below the email field. If the error is swallowed silently, fix the error
+handling so the message appears on screen.
+
+FIX F03 — Profile shows real user name
+What to do: Confirm Profile.tsx fetches the user by userId from the profiles
+table and displays user.full_name. If it references any mock user object, remove
+that reference and use the fetched data instead.
+
+FIX F04 — Residence field on listing form
+What to do: Confirm PostListing.tsx includes a residence input field. Confirm
+the value is passed to createListing. Confirm createListing in dataService.ts
+includes residence in the insert payload. If any of these are missing, add them.
+
+FIX F05 — Empty feed button navigates correctly
+What to do: In Feed.tsx find the empty state component. Confirm its action
+button navigates to /post when currentUser exists and to /student when currentUser
+is null. If the navigation target is wrong, fix it.
+
+FIX F06 — Plan selection before posting
+What to do: Create a new file src/components/student/PlanSelector.tsx that
+renders four plan cards. Each card has a button. When clicked it calls
+onSelect(planName). Props: onSelect: (plan: string) => void.
+Card content exactly as follows:
+
+GHOST — Free — "Your listing exists. Nobody will notice it." — "No photo. No
+chat. 3 days." — button: "Post for Free"
+VISIBLE — R29/month — "Students can see you. Now make it count." — "Photo
+included. Chat unlocked. 7 days." — button: "Choose Visible"
+LOUD — R79/month — "You show up before everyone else." — "Priority placement.
+14 days." — button: "Choose Loud"
+UNMISSABLE — R149/month — "First in the feed. Every single day." — "Video
+upload. Pinned. 30 days." — button: "Choose Unmissable"
+
+In PostListing.tsx add a selectedPlan state initialised to null. If selectedPlan is
+null, render PlanSelector instead of the form. Pass selectedPlan into the
+createListing call as plan.
+Side effect check: Confirm createListing in dataService.ts accepts plan and
+uses it to calculate expires_at. If it does not, add the plan field to the function
+signature and calculation.
+
+FIX F07 — Ghost tier restrictions
+What to do: In PostListing.tsx after plan is selected, if selectedPlan ===
+'ghost' hide the photo upload section and show the text: "Photo upload is not
+available on the Ghost plan." In ListingDetail.tsx if the seller's plan from the
+database is 'ghost', replace the "I'm Interested — Message Seller" button with
+static text: "This seller is on the Ghost plan. Contact is not available."
+Side effect check: The seller plan must come from the fetched seller Profile
+object, not from currentUser. Confirm seller is fetched from Supabase before this
+check runs.
+
+FIX F08 — Other category triggers text field
+What to do: Confirm PostListing.tsx shows a text input when category ===
+'other'. Confirm the input value is passed to createListing as customCategory. If
+either is missing, add it.
+
+FIX F09 — Notification permission on registration
+What to do: In StudentAuth.tsx after a successful registration, add this exact
+code before the navigate call:
+typescriptif ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+Do not add it to the login flow. Registration only.
+
+FIX F10 — Business type Other triggers specify field
+What to do: In RetailerSignup.tsx when businessType === 'Other', show a text
+input below the dropdown. Label: "Please describe your business type". Max 60
+characters. Required only when Other is selected. Pass the value to the submission
+as customBusinessType.
+
+FIX F11 — Clear chat button
+What to do: Confirm ChatPage.tsx has a clear chat button in the conversation
+header. Confirm it clears messages from local state only — not from the database.
+If missing, add a Trash2 icon button that sets messages to empty array in local
+state and shows a toast.
+
+FIX F12 — Pending approval flow
+What to do: Confirm createListing in dataService.ts sets status to 'pending'.
+Confirm the success toast in PostListing.tsx says "Listing submitted for review.
+We will approve it shortly." not "Your listing is live." Confirm getListings only
+returns listings where status = 'active'.
+
+FIX F13 — Single versus ongoing toggle
+What to do: Confirm PostListing.tsx has a toggle for single versus ongoing
+listing type. Confirm the value is passed to createListing as listingType. Confirm
+the database insert uses listing_type as the column name.
+
+FIX F14 — Rating tied to mark as sold
+What to do: In ListingDetail.tsx confirm handleMarkSold fetches conversations
+for the listing, extracts buyer profiles, and shows a modal. Confirm confirmMarkSold
+calls createNotification with type rating_request — not sendMessage with sender_id
+'system'. If sendMessage with 'system' is present, replace it with createNotification.
+Side effect check: createNotification must be imported from dataService. Confirm
+it exists there. If not, add it.
+
+FIX F15 — Logged out users see feed only
+What to do: Confirm BottomNav.tsx renders only the Feed icon when currentUser
+is null. Post, Messages, and Profile must not be in the DOM at all. If they are
+present when logged out, remove them from the null branch.
+
+FIX T04 — Image upload to Supabase Storage
+What to do: In PostListing.tsx when the form submits, if an image is selected,
+upload it to Supabase Storage bucket 'listing-images' before calling createListing.
+Use the returned public URL as imageUrl. If upload fails, show error toast and do
+not submit the listing. Currently if base64 is stored directly, replace that logic.
+Side effect check: Import supabase from supabaseClient in PostListing.tsx for
+the storage upload only. Do not add any other supabase calls to this file.
+
+FIX T05 — Messages persist after refresh
+What to do: Confirm getConversationById in dataService.ts fetches messages from
+the messages table and returns them with the conversation. Confirm ChatWindow.tsx
+initialises its messages state from conversation.messages. If messages are stored
+only in local state without a database fetch on load, fix getConversationById to
+include the messages query.
+
+FIX T06 — Admin panel uses real database
+What to do: Confirm AdminPanel.tsx calls getAllListingsAdmin from dataService
+which fetches from the Supabase listings table. Confirm approveListingById and
+rejectListingById update the status column in the database. If any mock data is
+used, remove it.
+
+FIX T07 — Listing expiry set correctly
+What to do: Confirm createListing in dataService.ts calculates expires_at based
+on plan: Ghost = 3 days, Visible = 7, Loud = 14, Unmissable = 30. If the
+calculation is missing or wrong, fix it.
+
+FIX T08 — submitRating correct argument order
+What to do: Confirm submitRating in dataService.ts signature is:
+submitRating(sellerId, buyerId, listingId, stars, comment?). Confirm every call to
+submitRating across all files passes arguments in this exact order. Fix any
+that do not.
+
+FIX T09 — Business signup saves to database
+What to do: Confirm RetailerSignup.tsx handleSubmit calls submitBusinessApplication
+from dataService which inserts into business_profiles. If it only console.logs,
+replace the handler with a real Supabase insert. On success show the confirmation
+view. On error show "Submission failed. Please try again."
+
+FIX T11 — Real-time messages in ChatWindow
+What to do: In ChatWindow.tsx add a useEffect that subscribes to Supabase
+realtime inserts on the messages table filtered by conversation_id. Append new
+messages to state. Clean up the subscription on unmount. Guard the subscription
+with: if (!supabase || !('channel' in supabase)) return;
+
+FIX T12 — Notification bell feeds from database
+What to do: In Navbar.tsx on mount fetch from the notifications table where
+user_id equals currentUser.id and read equals false. Add the count to
+unreadMessageCount for the badge. Show a dropdown of the 5 most recent unread
+notifications when the bell is tapped. Tapping one marks it read and navigates to
+the relevant listing or conversation.
+
+FIX T13 — Plan enforcement from database
+Already covered in F07. Confirm the seller plan check reads from the fetched Profile
+object from Supabase — not from a hardcoded value.
+
+FIX T14 — Vite config correct for Cloudflare
+What to do: Read vite.config.ts. If it has a base property set to anything
+other than '/' or undefined, remove it. Cloudflare Pages serves from root. A
+subfolder base path breaks asset loading on Cloudflare.
+
+AFTER ALL FIXES
+Before pushing, check the following:
+
+Does every file that imports supabase use the export from supabaseClient.ts?
+Does any file still reference MockUser, MockListing, mockUsers, or mockMessages
+outside the mock folder?
+Does any visible UI text still say Campus Noticeboard, Wits, or CN as a brand mark?
+Does supabaseClient.ts have the safe guard against missing env vars?
+Is the / route in App.tsx rendering Entrance with no conditions?
+
+If any answer is no, fix it before pushing.
+Push all changes to GitHub. List every file created or modified with its full path.

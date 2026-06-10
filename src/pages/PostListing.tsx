@@ -4,7 +4,9 @@ import { ArrowLeft } from 'lucide-react';
 import { createListing } from '../services/dataService';
 import { CATEGORIES } from '../services/mock/mockCategories';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../services/supabaseClient';
 import ListingImageUpload from '../components/student/ListingImageUpload';
+import PlanSelector from '../components/student/PlanSelector';
 
 export default function PostListing() {
   const navigate = useNavigate();
@@ -17,29 +19,50 @@ export default function PostListing() {
   const [listingType, setListingType] = useState<'single' | 'ongoing'>('single');
   const [customCategory, setCustomCategory] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [residence, setResidence] = useState(currentUser?.residence ?? '');
 
   const isFormValid =
-    !!imageData &&
+    (selectedPlan === 'ghost' || !!imageData) &&
     title.trim().length > 0 &&
     category !== '' &&
     price !== '' &&
     Number(price) > 0 &&
-    description.length >= 20;
+    description.length >= 20 &&
+    residence.trim().length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
 
-    if (!imageData) errs.image = 'A photo is required.';
+    if (selectedPlan !== 'ghost' && !imageData) errs.image = 'A photo is required.';
     if (!title.trim()) errs.title = 'Title is required.';
     if (!category) errs.category = 'Select a category.';
     if (category === 'other' && !customCategory.trim()) errs.customCategory = 'Please describe your category.';
     if (!price || Number(price) <= 0) errs.price = 'Enter a positive price.';
     if (description.length < 20) errs.description = 'Minimum 20 characters required.';
+    if (!residence.trim()) errs.residence = 'Residence is required.';
 
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     if (!currentUser) return;
+
+    let imageUrl: string | null = null;
+    if (imageData) {
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      const ext = blob.type.split('/')[1] || 'jpg';
+      const fileName = `${currentUser.id}-${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('listing-images')
+        .upload(fileName, blob, { contentType: blob.type });
+      if (uploadError) {
+        showToast('Image upload failed. Please try again.', 'error');
+        return;
+      }
+      const { data: urlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
+      imageUrl = urlData.publicUrl;
+    }
 
     await createListing({
       sellerId: currentUser.id,
@@ -47,11 +70,11 @@ export default function PostListing() {
       description,
       price: Number(price),
       category,
-      imageUrl: imageData ?? '',
-      residence: currentUser.residence,
+      imageUrl,
+      residence,
       listingType,
       customCategory: category === 'other' ? customCategory.trim() : '',
-      plan: currentUser.plan ?? 'ghost',
+      plan: selectedPlan!,
     });
 
     showToast('Listing submitted for review. We will approve it shortly.', 'success');
@@ -59,6 +82,19 @@ export default function PostListing() {
   };
 
   const inputClass = 'bg-slate-card border border-slate-border rounded-xl px-4 py-3 text-cream w-full text-sm placeholder:text-cream-muted focus:outline-none focus:border-teal-light';
+
+  if (selectedPlan === null) {
+    return (
+      <div className="min-h-screen bg-slate-deep">
+        <div className="sticky top-0 z-50 bg-slate-deep border-b border-slate-border h-14 flex items-center px-4">
+          <button onClick={() => navigate(-1)}>
+            <ArrowLeft className="text-cream" size={20} />
+          </button>
+        </div>
+        <PlanSelector onSelect={setSelectedPlan} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-deep">
@@ -73,11 +109,15 @@ export default function PostListing() {
         <p className="text-cream-muted text-sm mt-1">Fill in all fields. Incomplete listings will not be posted.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-6">
-          <div>
-            <label className="text-cream text-sm font-medium mb-1 block">Photo</label>
-            <ListingImageUpload onImageSelect={setImageData} />
-            {errors.image && <p className="text-status-danger text-sm mt-1">{errors.image}</p>}
-          </div>
+          {selectedPlan !== 'ghost' ? (
+            <div>
+              <label className="text-cream text-sm font-medium mb-1 block">Photo</label>
+              <ListingImageUpload onImageSelect={setImageData} />
+              {errors.image && <p className="text-status-danger text-sm mt-1">{errors.image}</p>}
+            </div>
+          ) : (
+            <p className="text-cream-muted text-sm">Photo upload is not available on the Ghost plan.</p>
+          )}
 
           <div>
             <label htmlFor="title" className="text-cream text-sm font-medium mb-1 block">Title</label>
@@ -187,6 +227,19 @@ export default function PostListing() {
               <span className="text-cream-muted text-xs ml-auto">{description.length}/300</span>
             </div>
             {errors.description && <p className="text-status-danger text-sm mt-1">{errors.description}</p>}
+          </div>
+
+          <div>
+            <label htmlFor="residence" className="text-cream text-sm font-medium mb-1 block">Residence</label>
+            <input
+              id="residence"
+              type="text"
+              placeholder="Your residence or building name"
+              value={residence}
+              onChange={e => setResidence(e.target.value)}
+              className={inputClass}
+            />
+            {errors.residence && <p className="text-status-danger text-sm mt-1">{errors.residence}</p>}
           </div>
 
           <button

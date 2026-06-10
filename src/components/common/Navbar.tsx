@@ -8,7 +8,7 @@ export default function Navbar() {
 
   return (
     <div className="sticky top-0 z-50 bg-slate-deep border-b border-slate-border h-14 flex items-center justify-between px-4">
-      <span className="text-gold font-bold text-lg">CN</span>
+      <span className="text-gold font-bold text-lg">AX</span>
       <div className="flex items-center gap-3">
         <div className="relative">
           <Bell className="text-cream-muted" size={20} />

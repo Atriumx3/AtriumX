@@ -21,11 +21,13 @@ export default function RetailerSignup() {
   const [phone, setPhone] = useState('');
   const [package_, setPackage] = useState(initialTier);
   const [description, setDescription] = useState('');
+  const [customBusinessType, setCustomBusinessType] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   const isFormValid =
     businessName.trim() && businessType && contactName.trim() &&
-    email.trim() && phone.trim() && package_ && description.trim();
+    email.trim() && phone.trim() && package_ && description.trim() &&
+    (businessType !== 'other' || customBusinessType.trim());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +35,7 @@ export default function RetailerSignup() {
     const { error } = await submitBusinessApplication({
       businessName,
       businessType,
+      customBusinessType: businessType === 'other' ? customBusinessType : undefined,
       contactPerson: contactName,
       email,
       phone,
@@ -89,6 +92,22 @@ export default function RetailerSignup() {
               <option value="other">Other</option>
             </select>
           </div>
+
+          {businessType === 'other' && (
+            <div>
+              <label htmlFor="customBusinessType" className="text-cream text-sm font-medium mb-1 block">Please describe your business type</label>
+              <input
+                id="customBusinessType"
+                type="text"
+                value={customBusinessType}
+                onChange={e => setCustomBusinessType(e.target.value.slice(0, 60))}
+                maxLength={60}
+                placeholder="Describe your business type"
+                className={inputClass}
+                required
+              />
+            </div>
+          )}
 
           <div>
             <label htmlFor="contactName" className="text-cream text-sm font-medium mb-1 block">Contact Person Name</label>
