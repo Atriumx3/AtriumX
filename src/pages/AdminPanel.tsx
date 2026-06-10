@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getListings, getAllListings, getUserById, reportListing, approveListing, rejectListing } from '../services/dataService';
-import type { MockListing } from '../services/mock/mockListings';
-import type { MockUser } from '../services/mock/mockUsers';
+import { getListings, getAllListingsAdmin, getUserById, reportListing, approveListingById, rejectListingById } from '../services/dataService';
+import type { Listing, Profile } from '../services/dataService';
 import { useApp } from '../context/AppContext';
 import StatusBadge from '../components/common/StatusBadge';
 import EmptyState from '../components/common/EmptyState';
@@ -12,15 +11,15 @@ export default function AdminPanel() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'flagged' | 'all' | 'pending'>('flagged');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [listings, setListings] = useState<MockListing[]>([]);
-  const [sellers, setSellers] = useState<Record<string, MockUser>>({});
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [sellers, setSellers] = useState<Record<string, Profile>>({});
 
   useEffect(() => {
     if (currentUser && !currentUser.isAdmin) { navigate('/feed'); return; }
-    getAllListings().then(async all => {
+    getAllListingsAdmin().then(async all => {
       setListings(all);
       const ids = [...new Set(all.map(l => l.sellerId))];
-      const map: Record<string, MockUser> = {};
+      const map: Record<string, Profile> = {};
       await Promise.all(ids.map(async id => {
         const u = await getUserById(id);
         if (u) map[id] = u;
@@ -46,28 +45,28 @@ export default function AdminPanel() {
   };
 
   const handleApprove = async (id: string) => {
-    await approveListing(id);
-    const updated = await getAllListings();
+    await approveListingById(id);
+    const updated = await getAllListingsAdmin();
     setListings(updated);
   };
 
   const handleReject = async (id: string) => {
-    await rejectListing(id);
-    const updated = await getAllListings();
+    await rejectListingById(id);
+    const updated = await getAllListingsAdmin();
     setListings(updated);
   };
 
-  const ListingRow = ({ listing }: { listing: MockListing }) => {
-    const seller = sellers[listing.sellerId];
+  const ListingRow = ({ listing }: { listing: Listing }) => {
+    const seller = sellers[listing.seller_id];
     return (
       <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-border">
         <div className="flex-1 min-w-0">
           <p className="text-cream text-sm font-bold truncate">{listing.title}</p>
-          <p className="text-cream-muted text-xs">{seller?.fullName ?? 'Unknown'}</p>
+          <p className="text-cream-muted text-xs">{seller?.full_name ?? 'Unknown'}</p>
         </div>
-        {listing.reportCount > 0 && (
+        {listing.report_count > 0 && (
           <span className="bg-status-danger text-white text-xs font-bold px-2 py-0.5 rounded-full">
-            {listing.reportCount} reports
+            {listing.report_count} reports
           </span>
         )}
         <StatusBadge status={listing.status} />
@@ -77,7 +76,7 @@ export default function AdminPanel() {
               Suspend
             </button>
           )}
-          {listing.reportCount > 0 && (
+          {listing.report_count > 0 && (
             <button onClick={() => handleClear(listing.id)} className="bg-teal-primary text-cream text-xs font-bold py-1 px-2 rounded-lg">
               Clear
             </button>
@@ -156,14 +155,14 @@ export default function AdminPanel() {
               <EmptyState icon="Package" message="No listings awaiting approval." />
             ) : (
               listings.filter(l => l.status === 'pending').map(l => {
-                const seller = sellers[l.sellerId];
-                const catLabel = l.category === 'other' && l.customCategory ? l.customCategory : l.category;
+                const seller = sellers[l.seller_id];
+                const catLabel = l.category === 'other' && l.custom_category ? l.custom_category : l.category;
                 return (
                   <div key={l.id} className="flex items-center gap-3 px-4 py-3 border-b border-slate-border">
                     <div className="flex-1 min-w-0">
                       <p className="text-cream text-sm font-bold truncate">{l.title}</p>
-                      <p className="text-cream-muted text-xs">{seller?.fullName ?? 'Unknown'} · {catLabel} · {l.listingType === 'single' ? 'Single' : 'Ongoing'}</p>
-                      <p className="text-cream-muted text-xs">Submitted {new Date(l.createdAt).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}</p>
+                      <p className="text-cream-muted text-xs">{seller?.full_name ?? 'Unknown'} · {catLabel} · {l.listing_type === 'single' ? 'Single' : 'Ongoing'}</p>
+                      <p className="text-cream-muted text-xs">Submitted {new Date(l.created_at).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric' })}</p>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => handleApprove(l.id)} className="bg-status-success text-white text-xs font-bold py-1 px-3 rounded-full">
