@@ -1,0 +1,163 @@
+AtriumX — Full Audit Prompt
+WHO YOU ARE TALKING TO
+You are auditing AtriumX — a mobile-first React/TypeScript student marketplace app.
+Students at university residences buy, sell, and offer services. Businesses advertise
+to students. An admin moderates listings. The backend is Supabase. It is deployed on
+Cloudflare Pages. It uses HashRouter so all URLs contain a #.
+WHAT YOU MUST DO
+Read every single file in this project before responding. Do not change anything.
+Do not fix anything. Do not suggest improvements outside the list below.
+Your only job is to check each item below and report:
+
+WORKS — the code correctly implements this
+BROKEN — the code does not implement this, with the exact reason why
+PARTIAL — the code attempts this but has a specific flaw, with the exact flaw named
+
+Do not group items. Report each numbered item individually.
+
+TECH STACK
+
+React 18 + TypeScript
+Vite (environment variables must be prefixed VITE_ to be available at build time)
+Tailwind CSS with custom design tokens — do not evaluate styling
+Supabase JS v2 for auth and database
+HashRouter from React Router DOM v6
+Deployed on Cloudflare Pages
+
+DATABASE TABLES
+profiles, listings, conversations, messages, ratings, reports, notifications,
+business_profiles
+CUSTOM TAILWIND TOKENS IN USE
+bg-slate-deep, bg-slate-card, slate-border, text-cream, text-cream-muted, text-gold,
+text-ember, bg-ember, teal-primary, teal-light, teal-faint, status-success,
+status-danger, status-warning. These are intentional — do not flag them as errors.
+
+THE 29 THINGS THE APP MUST DO
+FUNCTIONAL REQUIREMENTS
+F01 — Entrance page loads first
+When anyone visits the app URL, the very first thing they see must be an entrance page
+with two options: Enter as Student and Enter as Business. No auth check, no redirect,
+no condition. Anyone including logged-out users must see this page first.
+F02 — Login rejects accounts that do not exist
+When a user enters an email and password that do not match any real Supabase account,
+the form must show a clear error message. It must never allow fake sign-ins or bypass
+authentication.
+F03 — Profile shows the logged-in user's real name
+When a user views their own profile, they must see their own name pulled from the
+Supabase profiles table — not a hardcoded name from mock data.
+F04 — Residence field on listing form
+When posting a listing, the form must include a field for residence or building name.
+This value must be passed to the database when the listing is created.
+F05 — Empty feed button navigates to post page
+When the feed has no listings and shows an empty state, the call-to-action button must
+navigate to /post if the user is logged in, or to /student if they are not.
+F06 — Plan selection before posting
+Before the listing form appears, the user must see a plan selection screen with four
+options: Ghost (free), Visible (R29), Loud (R79), Unmissable (R149). The selected plan
+must be passed into the listing creation call.
+F07 — Ghost tier restrictions
+If the user's plan is ghost, the photo upload section must be hidden and replaced with
+a text note explaining photos are not available on Ghost. The chat button on listing
+detail must be replaced with a static message saying contact is not available on Ghost
+plan. These restrictions must be enforced based on the seller's actual plan from the
+database, not hardcoded.
+F08 — Other category triggers a text field
+On the listing form, when the user selects Other from the category dropdown, a text
+input must appear immediately below for them to describe their category. This field
+must be required when Other is selected and passed to the database.
+F09 — Notification permission prompt on registration
+When a user successfully registers, the app must request browser notification
+permission using the Notifications API.
+F10 — Business type Other triggers a specify field
+On the retailer signup form, when the user selects Other from the business type
+dropdown, a text input must appear below for them to specify their business type. This
+field must be required when Other is selected.
+F11 — Clear chat button in conversation view
+Inside an open conversation, there must be a button that clears the visible messages
+from the screen. This is a UI-only clear — it does not delete messages from the
+database.
+F12 — Listing pending approval flow
+When a listing is submitted it must have status pending. It must not appear in the
+public feed until an admin approves it and its status changes to active. The seller
+must see a toast confirming their listing is under review, not that it is live.
+F13 — Single versus ongoing toggle on listing form
+The listing form must have a toggle or button group that lets the seller choose between
+Single item (closes when sold) and Always available (ongoing service). This value must
+be passed to the database as listing_type.
+F14 — Rating tied to mark as sold flow
+When a seller marks a listing as sold, they must be shown a modal asking who bought
+this. They select a buyer from the list of people who messaged about the listing, or
+skip. If they select a buyer, a notification must be sent to that buyer prompting them
+to leave a rating. The notification must go to the notifications table with
+type rating_request, not as a chat message.
+F15 — Logged out users see feed only
+When no user is logged in, the bottom navigation must show only the Feed icon. Post,
+Messages, and Profile must be completely removed from the DOM — not greyed out, not
+hidden with CSS, gone entirely.
+TECHNICAL REQUIREMENTS
+T01 — Supabase connection does not crash the app
+supabaseClient.ts must export a valid Supabase client without throwing synchronously
+at module load time even if environment variables are missing. A crash here collapses
+the entire module graph and produces a blank screen.
+T02 — Real authentication
+registerWithEmail must create a real account in Supabase auth. loginWithEmail must
+check real credentials against Supabase auth. Neither function may use mock data,
+hardcoded users, or bypass the auth check.
+T03 — Profile pulls from real database
+getUserById must fetch from the Supabase profiles table. getCurrentUser must fetch the
+logged-in user's profile from the profiles table. No mock user data may be returned.
+T04 — Image upload goes to Supabase Storage
+When a listing is submitted with a photo, the image must be uploaded to the
+listing-images bucket in Supabase Storage and the returned public URL must be saved
+as image_url in the listing. Storing base64 strings in the database is not acceptable.
+T05 — Messages persist after refresh
+Messages in a conversation must be loaded from the Supabase messages table on every
+page load. They must not be stored in local state only. After a page refresh the
+conversation history must still be visible.
+T06 — Admin panel connects to real database
+The admin panel must load listings from the Supabase listings table. Approve and
+reject actions must update the status column in the database. No mock listing data
+may be used.
+T07 — Listing expiry
+The expires_at column must be set correctly when a listing is created based on the
+seller's plan. Ghost = 3 days, Visible = 7 days, Loud = 14 days, Unmissable = 30
+days. The pg_cron job in the database handles automatic expiry — the frontend does not
+need to do anything extra beyond setting expires_at correctly.
+T08 — Seller rating recalculates automatically
+The database trigger handles recalculating avg_rating and total_ratings on the
+profiles table whenever a rating is inserted. The frontend only needs to call the
+insert correctly — verify the submitRating function passes the correct arguments in
+the correct order: sellerId, buyerId, listingId, stars, comment.
+T09 — Business signup saves to database
+The retailer signup form must insert into the business_profiles table in Supabase
+when submitted. It must not console.log only. On success show the confirmation
+message. On error show a failure message.
+T10 — No Wits or Campus Noticeboard references in visible UI
+Search every component and page for any text that says Wits, Campus Noticeboard, or
+CN used as a brand mark. All visible UI text must use Atrium or AX instead.
+index.html title tag must say Atrium.
+T11 — Real-time messages
+ChatWindow must subscribe to new message inserts on the messages table using Supabase
+real-time so the other person's messages appear without a page refresh.
+T12 — Notification bell feeds from database
+The bell icon in Navbar must fetch unread notifications from the notifications table
+for the current user. Tapping a notification must mark it as read and navigate to the
+relevant listing or conversation.
+T13 — Plan enforcement from database
+Ghost tier restrictions (no photo, no chat) must be enforced based on the seller's
+actual plan field from the profiles table fetched from Supabase — not based on a
+hardcoded value or local state.
+T14 — Vite config correct for Cloudflare
+vite.config.ts must not set a base path that conflicts with Cloudflare Pages routing.
+Confirm the config is correct for a Cloudflare Pages deployment.
+
+YOUR OUTPUT FORMAT
+For each item, respond exactly like this:
+F01 — Entrance page loads first
+STATUS: BROKEN
+REASON: App.tsx line 61 renders Entrance unconditionally but AppContext.tsx crashes
+before mounting because supabaseClient.ts throws at module load time, so the entrance
+page never renders.
+Do this for all 29 items. Then at the end write a summary of how many WORKS, BROKEN,
+and PARTIAL you found.
+Do not fix anything. Do not change anything. Do not push to GitHub.
