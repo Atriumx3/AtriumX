@@ -1,0 +1,234 @@
+Read the ATRIUM_CONTEXT document before doing anything.
+
+CRITICAL RULE: Do not touch supabaseClient.ts or 
+AppContext.tsx under any circumstances. These files 
+contain crash protection that must be preserved.
+If any fix requires importing supabase directly, 
+import it from '../services/supabaseClient' or 
+'../../services/supabaseClient' depending on the 
+file location. Never modify the export in 
+supabaseClient.ts itself.
+
+Do not change any Tailwind classes, colors, or layout.
+Do not add any features not listed here.
+Do not rewrite any file from scratch except where 
+explicitly stated.
+Inspect every file in the project before starting 
+to confirm no broken imports exist.
+Push to GitHub when done and list every file modified.
+
+---
+
+FIX 1 — src/pages/PostListing.tsx
+
+Two problems in the createListing call:
+
+Problem A — campus field does not exist
+The call passes campus: currentUser.campus
+The Profile type has no campus property and the 
+database has no campus column.
+Remove this line entirely from the createListing call.
+
+Problem B — plan field is missing
+The createListing function in dataService requires 
+a plan field to calculate listing expiry.
+Add this line inside the createListing call object 
+after the residence field:
+  plan: currentUser.plan ?? 'ghost',
+
+Also change the success toast message from:
+  'Your listing is live for 7 days.'
+To:
+  'Listing submitted for review. We will approve 
+   it shortly.'
+
+Change nothing else in this file.
+
+---
+
+FIX 2 — src/components/student/RateSellerModal.tsx
+
+Two problems:
+
+Problem A — wrong return value
+The handleSubmit function does:
+  const { success } = await submitRating(...)
+  if (success) {
+submitRating returns { error: string | null }
+There is no success property. The rating never 
+saves because success is always undefined.
+
+Problem B — wrong argument order
+The current call passes arguments as:
+  sellerId, stars, listingId, raterId
+The correct signature is:
+  submitRating(sellerId, buyerId, listingId, 
+               stars, comment?)
+
+Fix both together. Replace the entire handleSubmit 
+function with:
+
+  const handleSubmit = async () => {
+    if (stars === 0 || submitted) return;
+    const { error } = await submitRating(
+      sellerId, 
+      raterId, 
+      listingId, 
+      stars, 
+      comment || undefined
+    );
+    if (!error) {
+      setSubmitted(true);
+      showToast('Rating submitted. Thank you.', 
+        'success');
+    } else {
+      showToast('Rating failed. Please try again.', 
+        'error');
+    }
+  };
+
+Change nothing else in this file.
+
+---
+
+FIX 3 — src/pages/ChatPage.tsx
+
+Two problems:
+
+Problem A — wrong argument order in handleRate
+Current call:
+  await submitRating(activeConv.seller_id, stars, 
+    activeConv.listing_id, currentUser.id);
+Correct signature:
+  submitRating(sellerId, buyerId, listingId, 
+               stars, comment?)
+
+Replace with:
+  await submitRating(
+    activeConv.seller_id,
+    currentUser.id,
+    activeConv.listing_id,
+    stars,
+    comment || undefined
+  );
+
+Problem B — handleResolved treats return value 
+as a Conversation object
+Current code:
+  const updated = await markConversationResolved(
+    activeConv.id);
+  if (updated) {
+    setActiveConv(updated);
+
+markConversationResolved returns { error: string | null }
+not a Conversation. updated is always truthy because 
+objects are always truthy. setActiveConv receives 
+{ error } instead of a Conversation, crashing the 
+chat view.
+
+Replace with:
+  const { error } = await markConversationResolved(
+    activeConv.id);
+  if (!error) {
+    setActiveConv(prev => prev 
+      ? { ...prev, is_resolved: true } 
+      : prev);
+    showToast('Conversation marked as resolved.', 
+      'success');
+  }
+
+Change nothing else in this file.
+
+---
+
+FIX 4 — src/pages/ListingDetail.tsx
+
+Problem — sendMessage used with illegal sender_id
+Inside confirmMarkSold the code calls:
+  await sendMessage(conv.id, 'system', `Hi!...`);
+The messages table has a foreign key on sender_id 
+referencing profiles.id. Passing 'system' violates 
+this constraint and throws a Supabase error.
+
+Step 1 — Update the import line
+Find the import from dataService that includes 
+sendMessage. Remove sendMessage from it. Add 
+createNotification in its place.
+
+Step 2 — Replace the sendMessage call
+Find:
+  if (conv) {
+    await sendMessage(conv.id, 'system', 
+      `Hi! You recently bought from...`);
+  }
+
+Replace with:
+  if (conv && currentUser) {
+    await createNotification({
+      userId: buyerId,
+      message: `You bought from 
+        ${seller.full_name}. How was your 
+        experience? Tap here to leave a rating.`,
+      type: 'rating_request',
+      listingId: listing.id,
+      conversationId: conv.id,
+    });
+  }
+
+Change nothing else in this file.
+
+---
+
+FIX 5 — src/pages/RetailerSignup.tsx
+
+The handleSubmit function console.logs the form 
+data and never saves to Supabase.
+
+Step 1 — Add import at the top of the file:
+  import { submitBusinessApplication } from 
+    '../services/dataService';
+
+Step 2 — Replace the handleSubmit function:
+
+REMOVE:
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+    console.log({...});
+    setSubmitted(true);
+  };
+
+ADD:
+  const handleSubmit = async (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+    const { error } = await 
+      submitBusinessApplication({
+        businessName,
+        businessType,
+        contactPerson: contactName,
+        email,
+        phone,
+        selectedPackage: package_,
+        description,
+      });
+    if (error) {
+      alert('Submission failed. Please try again.');
+      return;
+    }
+    setSubmitted(true);
+  };
+
+Change nothing else in this file.
+
+---
+
+After all fixes:
+Confirm supabaseClient.ts was not touched.
+Confirm AppContext.tsx was not touched.
+Inspect every file in the project and confirm 
+no broken imports remain.
+List every file modified.
+Push to GitHub.

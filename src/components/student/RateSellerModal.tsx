@@ -20,10 +20,18 @@ export default function RateSellerModal({ sellerId, listingId, raterId, sellerNa
 
   const handleSubmit = async () => {
     if (stars === 0 || submitted) return;
-    const { error } = await submitRating(sellerId, raterId, listingId, stars, comment);
+    const { error } = await submitRating(
+      sellerId,
+      raterId,
+      listingId,
+      stars,
+      comment || undefined
+    );
     if (!error) {
       setSubmitted(true);
       showToast('Rating submitted. Thank you.', 'success');
+    } else {
+      showToast('Rating failed. Please try again.', 'error');
     }
   };
 

@@ -54,7 +54,7 @@ export default function PostListing() {
       plan: currentUser.plan ?? 'ghost',
     });
 
-    showToast('Listing submitted for review. It will appear in the feed once approved.', 'success');
+    showToast('Listing submitted for review. We will approve it shortly.', 'success');
     navigate('/feed');
   };
 

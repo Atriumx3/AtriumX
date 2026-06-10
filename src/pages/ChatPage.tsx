@@ -58,7 +58,13 @@ export default function ChatPage() {
 
   const handleRate = async (stars: number, comment: string) => {
     if (!activeConv || !currentUser) return;
-    await submitRating(activeConv.seller_id, currentUser.id, activeConv.listing_id, stars, comment);
+    await submitRating(
+      activeConv.seller_id,
+      currentUser.id,
+      activeConv.listing_id,
+      stars,
+      comment || undefined
+    );
     setShowRateModal(false);
   };
 
