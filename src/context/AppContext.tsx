@@ -46,6 +46,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // On mount: get current session and subscribe to auth changes
   useEffect(() => {
+    if (!supabase) return;
     getCurrentUser().then(user => setCurrentUser(user));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

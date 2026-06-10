@@ -73,6 +73,7 @@ export async function loginWithEmail(
   email: string,
   password: string
 ): Promise<{ user: Profile | null; error: string | null }> {
+  if (!supabase) return { user: null, error: 'Service unavailable.' };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { user: null, error: error.message };
   if (!data.user) return { user: null, error: 'Login failed.' };
@@ -86,6 +87,7 @@ export async function registerWithEmail(
   fullName: string,
   residence: string
 ): Promise<{ user: Profile | null; error: string | null }> {
+  if (!supabase) return { user: null, error: 'Service unavailable.' };
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -130,6 +132,7 @@ export async function logout(): Promise<{ error: string | null }> {
 }
 
 export async function getCurrentUser(): Promise<Profile | null> {
+  if (!supabase) return null;
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
   return getUserById(data.user.id);
@@ -138,6 +141,7 @@ export async function getCurrentUser(): Promise<Profile | null> {
 // ─── USERS ────────────────────────────────────────────────────────────────────
 
 export async function getUserById(id: string): Promise<Profile | null> {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -162,6 +166,7 @@ export async function getUserListings(userId: string): Promise<Listing[]> {
 export async function getListings(
   filters: { category?: string; search?: string } = {}
 ): Promise<Listing[]> {
+  if (!supabase) return [];
   let query = supabase
     .from('listings')
     .select('*')
