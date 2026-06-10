@@ -1,0 +1,186 @@
+Read the ATRIUM_CONTEXT document before doing anything.
+
+A previous investigation confirmed the root cause of 
+the blank screen. This prompt authorises specific fixes 
+only. Do not change anything not listed here. Do not 
+add features. Do not restructure any file beyond what 
+is described. Inspect every file in the project before 
+and after making changes to ensure nothing is broken 
+by a fix. Push to GitHub when all fixes are complete 
+and list every file modified.
+
+---
+
+IMPORTANT CONTEXT ON ENVIRONMENT VARIABLES
+
+The Supabase credentials are already correctly saved 
+in Cloudflare Pages under Settings > Variables and 
+secrets as plaintext variables:
+  VITE_SUPABASE_URL
+  VITE_SUPABASE_ANON_KEY
+
+The problem is not that the credentials are missing 
+from Cloudflare. The problem is that Vite does not 
+receive them at build time on Cloudflare Pages unless 
+the project is explicitly configured to expose them 
+during the build process. At build time these variables 
+are undefined, createClient throws synchronously, and 
+the entire JavaScript module graph collapses before 
+React can mount anything.
+
+---
+
+FIX 1 — src/services/supabaseClient.ts
+
+The current file calls createClient immediately at 
+module load time with no guard. If the environment 
+variables are undefined at build time the module 
+throws synchronously and crashes the entire app.
+
+Replace the entire file content with exactly this:
+
+import { createClient, SupabaseClient } from 
+  '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL 
+  as string;
+const supabaseAnonKey = 
+  import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+let supabaseInstance: SupabaseClient;
+
+try {
+  supabaseInstance = createClient(
+    supabaseUrl, 
+    supabaseAnonKey
+  );
+} catch (e) {
+  console.error(
+    'Supabase failed to initialise. ' +
+    'Check that VITE_SUPABASE_URL and ' +
+    'VITE_SUPABASE_ANON_KEY are set in ' +
+    'Cloudflare Pages environment variables.'
+  );
+  supabaseInstance = {} as SupabaseClient;
+}
+
+export const supabase = supabaseInstance;
+
+This ensures the module always exports something. 
+If credentials are missing the app loads and shows 
+the entrance page. Database calls will fail 
+individually with their own errors rather than 
+taking down the entire app.
+
+---
+
+FIX 2 — src/context/AppContext.tsx
+
+The useEffect that initialises Supabase auth has no 
+protection. If supabase is misconfigured the auth 
+listener throws and React has nothing to catch it.
+
+Find the useEffect block that contains:
+  getCurrentUser().then(...)
+  supabase.auth.onAuthStateChange(...)
+
+Wrap the entire contents of that useEffect in a 
+try/catch:
+
+  useEffect(() => {
+    try {
+      getCurrentUser().then(user => 
+        setCurrentUser(user));
+
+      const { data: { subscription } } = 
+        supabase.auth.onAuthStateChange(
+          (_event, session) => {
+            if (session?.user) {
+              getCurrentUser().then(user => 
+                setCurrentUser(user));
+            } else {
+              setCurrentUser(null);
+              setUnreadMessageCount(0);
+            }
+          }
+        );
+
+      return () => subscription.unsubscribe();
+    } catch (e) {
+      console.error(
+        'Auth initialisation failed:', e
+      );
+    }
+  }, []);
+
+Change nothing else in this file.
+
+---
+
+FIX 3 — vite.config.ts
+
+Cloudflare Pages requires environment variables to 
+be explicitly declared in the Vite config to be 
+available at build time. Replace the entire file 
+with exactly this:
+
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  return {
+    plugins: [react()],
+    base: '/',
+    define: {
+      'import.meta.env.VITE_SUPABASE_URL': 
+        JSON.stringify(
+          env.VITE_SUPABASE_URL || ''
+        ),
+      'import.meta.env.VITE_SUPABASE_ANON_KEY': 
+        JSON.stringify(
+          env.VITE_SUPABASE_ANON_KEY || ''
+        ),
+    },
+  };
+});
+
+This explicitly loads the environment variables 
+and inlines them into the built JavaScript so 
+Cloudflare Pages does not need to pass them at 
+runtime. The empty string fallback means the app 
+loads without crashing even if the variables are 
+not present.
+
+---
+
+FIX 4 — Create a Cloudflare Pages configuration file
+
+Create one new file in the project root named 
+exactly: _redirects
+
+Content:
+/* /index.html 200
+
+This tells Cloudflare Pages to serve index.html 
+for all routes, which is required for HashRouter 
+to work correctly on direct URL access. Without 
+this file navigating directly to any route other 
+than / returns a 404 from Cloudflare instead of 
+loading the app.
+
+---
+
+AFTER ALL FIXES:
+
+Inspect every file in the project and confirm no 
+file still imports something that does not exist, 
+no file references a property that was renamed, 
+and no file has a broken import path.
+
+List every file created or modified.
+Confirm each fix number is complete.
+Do not add anything not listed.
+Do not suggest improvements.
+Push everything to GitHub.

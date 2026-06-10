@@ -45,18 +45,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
   useEffect(() => {
-    getCurrentUser().then(user => setCurrentUser(user));
+    try {
+      getCurrentUser().then(user => setCurrentUser(user));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        getCurrentUser().then(user => setCurrentUser(user));
-      } else {
-        setCurrentUser(null);
-        setUnreadMessageCount(0);
-      }
-    });
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (session?.user) {
+            getCurrentUser().then(user => setCurrentUser(user));
+          } else {
+            setCurrentUser(null);
+            setUnreadMessageCount(0);
+          }
+        }
+      );
 
-    return () => subscription.unsubscribe();
+      return () => subscription.unsubscribe();
+    } catch (e) {
+      console.error('Auth initialisation failed:', e);
+    }
   }, []);
 
   const showToast = useCallback(
