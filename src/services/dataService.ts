@@ -1,7 +1,7 @@
 import { supabase } from './supabaseClient';
-
+ 
 // ─── TYPES ────────────────────────────────────────────────────────────────────
-
+ 
 export interface Profile {
   id: string;
   full_name: string;
@@ -19,7 +19,7 @@ export interface Profile {
   plan_expires_at: string | null;
   created_at: string;
 }
-
+ 
 export interface Listing {
   id: string;
   seller_id: string;
@@ -38,7 +38,7 @@ export interface Listing {
   created_at: string;
   expires_at: string;
 }
-
+ 
 export interface Conversation {
   id: string;
   listing_id: string;
@@ -48,7 +48,7 @@ export interface Conversation {
   created_at: string;
   messages?: Message[];
 }
-
+ 
 export interface Message {
   id: string;
   conversation_id: string;
@@ -57,37 +57,35 @@ export interface Message {
   read: boolean;
   sent_at: string;
 }
-
+ 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-
+ 
 function getExpiryDate(plan: string): string {
   const now = new Date();
   const days = plan === 'ghost' ? 3 : plan === 'visible' ? 7 : plan === 'loud' ? 14 : 30;
   now.setDate(now.getDate() + days);
   return now.toISOString();
 }
-
+ 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
-
+ 
 export async function loginWithEmail(
   email: string,
   password: string
 ): Promise<{ user: Profile | null; error: string | null }> {
-  if (!supabase) return { user: null, error: 'Service unavailable.' };
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { user: null, error: error.message };
   if (!data.user) return { user: null, error: 'Login failed.' };
   const profile = await getUserById(data.user.id);
   return { user: profile, error: null };
 }
-
+ 
 export async function registerWithEmail(
   email: string,
   password: string,
   fullName: string,
   residence: string
 ): Promise<{ user: Profile | null; error: string | null }> {
-  if (!supabase) return { user: null, error: 'Service unavailable.' };
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -97,11 +95,11 @@ export async function registerWithEmail(
   });
   if (error) return { user: null, error: error.message };
   if (!data.user) return { user: null, error: 'Registration failed.' };
-
+ 
   // Give the trigger a moment then fetch the profile
   await new Promise(r => setTimeout(r, 800));
   let profile = await getUserById(data.user.id);
-
+ 
   // If trigger hasn't fired yet, insert manually
   if (!profile) {
     const initials =
@@ -122,26 +120,24 @@ export async function registerWithEmail(
     if (insertError) return { user: null, error: insertError.message };
     profile = await getUserById(data.user.id);
   }
-
+ 
   return { user: profile, error: null };
 }
-
+ 
 export async function logout(): Promise<{ error: string | null }> {
   const { error } = await supabase.auth.signOut();
   return { error: error ? error.message : null };
 }
-
+ 
 export async function getCurrentUser(): Promise<Profile | null> {
-  if (!supabase) return null;
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
   return getUserById(data.user.id);
 }
-
+ 
 // ─── USERS ────────────────────────────────────────────────────────────────────
-
+ 
 export async function getUserById(id: string): Promise<Profile | null> {
-  if (!supabase) return null;
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -150,7 +146,7 @@ export async function getUserById(id: string): Promise<Profile | null> {
   if (error || !data) return null;
   return data as Profile;
 }
-
+ 
 export async function getUserListings(userId: string): Promise<Listing[]> {
   const { data, error } = await supabase
     .from('listings')
@@ -160,31 +156,30 @@ export async function getUserListings(userId: string): Promise<Listing[]> {
   if (error || !data) return [];
   return data as Listing[];
 }
-
+ 
 // ─── LISTINGS ─────────────────────────────────────────────────────────────────
-
+ 
 export async function getListings(
   filters: { category?: string; search?: string } = {}
 ): Promise<Listing[]> {
-  if (!supabase) return [];
   let query = supabase
     .from('listings')
     .select('*')
     .eq('status', 'active')
     .order('created_at', { ascending: false });
-
+ 
   if (filters.category && filters.category !== 'all') {
     query = query.eq('category', filters.category);
   }
   if (filters.search) {
     query = query.ilike('title', `%${filters.search}%`);
   }
-
+ 
   const { data, error } = await query;
   if (error || !data) return [];
   return data as Listing[];
 }
-
+ 
 export async function getListingById(id: string): Promise<Listing | null> {
   const { data, error } = await supabase
     .from('listings')
@@ -194,7 +189,7 @@ export async function getListingById(id: string): Promise<Listing | null> {
   if (error || !data) return null;
   return data as Listing;
 }
-
+ 
 export async function createListing(listingData: {
   sellerId: string;
   title: string;
@@ -209,7 +204,7 @@ export async function createListing(listingData: {
   plan: string;
 }): Promise<{ listing: Listing | null; error: string | null }> {
   const expiresAt = getExpiryDate(listingData.plan);
-
+ 
   const { data, error } = await supabase
     .from('listings')
     .insert({
@@ -228,11 +223,11 @@ export async function createListing(listingData: {
     })
     .select()
     .single();
-
+ 
   if (error || !data) return { listing: null, error: error?.message || 'Failed to create listing.' };
   return { listing: data as Listing, error: null };
 }
-
+ 
 export async function markListingAsSold(id: string): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('listings')
@@ -240,7 +235,7 @@ export async function markListingAsSold(id: string): Promise<{ error: string | n
     .eq('id', id);
   return { error: error ? error.message : null };
 }
-
+ 
 export async function renewListing(id: string): Promise<{ error: string | null }> {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
@@ -250,7 +245,7 @@ export async function renewListing(id: string): Promise<{ error: string | null }
     .eq('id', id);
   return { error: error ? error.message : null };
 }
-
+ 
 export async function reportListing(
   listingId: string,
   reporterId: string
@@ -260,9 +255,9 @@ export async function reportListing(
     .insert({ listing_id: listingId, reporter_id: reporterId });
   return { error: error ? error.message : null };
 }
-
+ 
 // ─── MESSAGES ─────────────────────────────────────────────────────────────────
-
+ 
 export async function getConversationsForUser(userId: string): Promise<Conversation[]> {
   const { data, error } = await supabase
     .from('conversations')
@@ -272,7 +267,7 @@ export async function getConversationsForUser(userId: string): Promise<Conversat
   if (error || !data) return [];
   return data as Conversation[];
 }
-
+ 
 export async function getConversationById(convId: string): Promise<Conversation | null> {
   const { data: conv, error: convError } = await supabase
     .from('conversations')
@@ -280,16 +275,16 @@ export async function getConversationById(convId: string): Promise<Conversation 
     .eq('id', convId)
     .single();
   if (convError || !conv) return null;
-
+ 
   const { data: messages } = await supabase
     .from('messages')
     .select('*')
     .eq('conversation_id', convId)
     .order('sent_at', { ascending: true });
-
+ 
   return { ...(conv as Conversation), messages: (messages as Message[]) || [] };
 }
-
+ 
 export async function sendMessage(
   convId: string,
   senderId: string,
@@ -303,7 +298,7 @@ export async function sendMessage(
   if (error || !data) return { message: null, error: error?.message || 'Failed to send.' };
   return { message: data as Message, error: null };
 }
-
+ 
 export async function startConversation(
   listingId: string,
   buyerId: string,
@@ -316,19 +311,19 @@ export async function startConversation(
     .eq('listing_id', listingId)
     .eq('buyer_id', buyerId)
     .single();
-
+ 
   if (existing) return { conversationId: existing.id, error: null };
-
+ 
   const { data, error } = await supabase
     .from('conversations')
     .insert({ listing_id: listingId, buyer_id: buyerId, seller_id: sellerId })
     .select()
     .single();
-
+ 
   if (error || !data) return { conversationId: null, error: error?.message || 'Failed to start conversation.' };
   return { conversationId: data.id, error: null };
 }
-
+ 
 export async function markConversationResolved(convId: string): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('conversations')
@@ -336,9 +331,9 @@ export async function markConversationResolved(convId: string): Promise<{ error:
     .eq('id', convId);
   return { error: error ? error.message : null };
 }
-
+ 
 // ─── RATINGS ──────────────────────────────────────────────────────────────────
-
+ 
 export async function submitRating(
   sellerId: string,
   buyerId: string,
@@ -351,9 +346,9 @@ export async function submitRating(
     .insert({ seller_id: sellerId, buyer_id: buyerId, listing_id: listingId, stars, comment });
   return { error: error ? error.message : null };
 }
-
+ 
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
-
+ 
 export async function getPendingListings(): Promise<Listing[]> {
   const { data, error } = await supabase
     .from('listings')
@@ -363,7 +358,7 @@ export async function getPendingListings(): Promise<Listing[]> {
   if (error || !data) return [];
   return data as Listing[];
 }
-
+ 
 export async function approveListingById(id: string): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('listings')
@@ -371,7 +366,7 @@ export async function approveListingById(id: string): Promise<{ error: string | 
     .eq('id', id);
   return { error: error ? error.message : null };
 }
-
+ 
 export async function rejectListingById(id: string): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('listings')
@@ -379,7 +374,7 @@ export async function rejectListingById(id: string): Promise<{ error: string | n
     .eq('id', id);
   return { error: error ? error.message : null };
 }
-
+ 
 export async function getAllListingsAdmin(): Promise<Listing[]> {
   const { data, error } = await supabase
     .from('listings')
@@ -388,9 +383,9 @@ export async function getAllListingsAdmin(): Promise<Listing[]> {
   if (error || !data) return [];
   return data as Listing[];
 }
-
+ 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
-
+ 
 export async function getUnreadNotifications(userId: string) {
   const { data, error } = await supabase
     .from('notifications')
@@ -402,11 +397,11 @@ export async function getUnreadNotifications(userId: string) {
   if (error || !data) return [];
   return data;
 }
-
+ 
 export async function markNotificationRead(id: string): Promise<void> {
   await supabase.from('notifications').update({ read: true }).eq('id', id);
 }
-
+ 
 export async function createNotification(payload: {
   userId: string;
   message: string;
@@ -422,9 +417,9 @@ export async function createNotification(payload: {
     conversation_id: payload.conversationId || null,
   });
 }
-
+ 
 // ─── BUSINESS ─────────────────────────────────────────────────────────────────
-
+ 
 export async function submitBusinessApplication(data: {
   businessName: string;
   businessType: string;
