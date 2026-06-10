@@ -1,0 +1,128 @@
+Read the ATRIUM_CONTEXT document before doing anything.
+
+CRITICAL RULE: Do not touch supabaseClient.ts or 
+AppContext.tsx under any circumstances.
+Do not change any Tailwind classes, colors, or layout.
+Do not add any features not listed here.
+Do not rewrite any file from scratch except where 
+explicitly stated.
+Push to GitHub when done and list every file modified.
+
+---
+
+FIX 1 — src/components/student/ChatWindow.tsx
+
+Messages only appear when the current user sends 
+them. The other person's messages require a page 
+refresh. Fix by adding a Supabase real-time 
+subscription.
+
+Add this import at the top of the file:
+  import { supabase } from 
+    '../../services/supabaseClient';
+
+Add this useEffect after the existing scroll 
+useEffect. Place it before the handleSend function:
+
+  useEffect(() => {
+    if (!supabase || !('channel' in supabase)) 
+      return;
+    const channel = supabase
+      .channel('messages:' + conversation.id)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: 'conversation_id=eq.' + 
+          conversation.id,
+      }, (payload) => {
+        setMessages(prev => {
+          const exists = prev.some(
+            m => m.id === payload.new.id
+          );
+          if (exists) return prev;
+          return [...prev, 
+            payload.new as Message];
+        });
+      })
+      .subscribe();
+
+    return () => { 
+      supabase.removeChannel(channel); 
+    };
+  }, [conversation.id]);
+
+The guard if (!supabase || !('channel' in supabase)) 
+ensures this does not crash if supabase failed to 
+initialise correctly.
+
+Change nothing else in this file.
+
+---
+
+FIX 2 — src/components/student/ListingCountdown.tsx
+
+The countdown calculates once at render and never 
+updates. Replace the entire file with exactly this:
+
+import { useState, useEffect } from 'react';
+
+interface ListingCountdownProps {
+  expiresAt: string;
+}
+
+export default function ListingCountdown({ 
+  expiresAt 
+}: ListingCountdownProps) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(
+      () => setNow(new Date()), 60000
+    );
+    return () => clearInterval(interval);
+  }, []);
+
+  const expires = new Date(expiresAt);
+  const diff = expires.getTime() - now.getTime();
+
+  if (diff <= 0) {
+    return (
+      <span className="text-status-danger text-xs">
+        Expired
+      </span>
+    );
+  }
+
+  const days = Math.floor(
+    diff / (1000 * 60 * 60 * 24)
+  );
+  const hours = Math.floor(
+    (diff % (1000 * 60 * 60 * 24)) / 
+    (1000 * 60 * 60)
+  );
+
+  if (days > 2) {
+    return (
+      <span className="text-cream-muted text-xs">
+        Expires in {days} days
+      </span>
+    );
+  }
+  return (
+    <span className="text-status-warning text-xs">
+      Expires in {hours}h
+    </span>
+  );
+}
+
+---
+
+After all fixes:
+Confirm supabaseClient.ts was not touched.
+Confirm AppContext.tsx was not touched.
+Confirm the real-time subscription guard is present 
+in ChatWindow.tsx so it cannot crash if supabase 
+is misconfigured.
+List every file modified.
+Push to GitHub.

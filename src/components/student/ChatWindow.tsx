@@ -28,6 +28,7 @@ export default function ChatWindow({ conversation, otherUser, listingTitle }: Ch
   }, [messages.length]);
 
   useEffect(() => {
+    if (!supabase || !('channel' in supabase)) return;
     const channel = supabase
       .channel('messages:' + conversation.id)
       .on('postgres_changes', {
