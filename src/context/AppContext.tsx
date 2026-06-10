@@ -44,9 +44,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [redirectAfterLogin, setRedirectAfterLogin] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
 
-  // On mount: get current session and subscribe to auth changes
   useEffect(() => {
-    if (!supabase) return;
     getCurrentUser().then(user => setCurrentUser(user));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
