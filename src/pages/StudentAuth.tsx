@@ -66,7 +66,8 @@ export default function StudentAuth() {
       const { user, error, requiresConfirmation } = await registerWithEmail(email, password, fullName, residence);
       setLoading(false);
       if (requiresConfirmation) {
-        setConfirmationMessage('Account created! Please check your email and click the confirmation link before signing in.');
+        setConfirmationMessage('Registration successful. Please check your email to confirm your account, then sign in.');
+        setMode('login');
         return;
       }
       if (error) {

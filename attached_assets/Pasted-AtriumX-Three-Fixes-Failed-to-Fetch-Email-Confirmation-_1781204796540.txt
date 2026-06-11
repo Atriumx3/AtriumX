@@ -1,0 +1,194 @@
+AtriumX — Three Fixes: Failed to Fetch + Email Confirmation + Direct Feed Access
+
+RULES
+
+
+Do not add any feature not listed in this prompt
+Do not change any Tailwind classes, colors, or layout
+Do not change any routing in App.tsx except what is explicitly stated below
+Do not edit any file that is not directly involved in these fixes
+Before applying any fix, check whether it could break another part of the app
+If a fix creates a side effect, find a different approach and report it
+Do not push to GitHub until all fixes are confirmed
+List every file modified at the end
+
+
+
+INVESTIGATION FIRST — DO THIS BEFORE ANY FIX
+
+Read src/services/supabaseClient.ts completely and answer:
+
+Q1 — What is the exact value being passed as the first argument to createClient?
+Is it reading from import.meta.env.VITE_SUPABASE_URL or is it using a hardcoded
+placeholder string like 'https://placeholder.supabase.co'?
+
+Q2 — If the environment variable is undefined at build time, what does the
+current code do? Does it throw, return null, or use a fallback placeholder URL?
+
+Q3 — Is there any conditional guard before createClient is called, and if so,
+what does it do when the guard fails?
+
+Answer all three questions with the exact code lines before making any change.
+
+The reason for this investigation: "Failed to fetch" on the live site almost always
+means the Supabase client is connecting to the wrong URL — either a placeholder that
+does not exist or an empty string. This crashes every auth call silently.
+
+
+FIX 1 — supabaseClient.ts must connect to the real Supabase URL
+
+What is happening
+
+The app is showing "Failed to fetch" on every auth attempt on the live Cloudflare
+site. This error comes from the Supabase client trying to reach a URL that does not
+exist or is empty. The environment variables VITE_SUPABASE_URL and
+VITE_SUPABASE_ANON_KEY are correctly set in Cloudflare's Variables and secrets
+panel. However, if the current supabaseClient.ts uses a placeholder fallback when
+the variables are undefined, the deployed build may be using that placeholder
+instead of the real values.
+
+The fix
+
+Replace the entire contents of src/services/supabaseClient.ts with exactly this:
+
+typescriptimport { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error(
+    'Supabase environment variables are missing. ' +
+    'VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set.'
+  );
+}
+
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl || 'https://missing-env.invalid',
+  supabaseAnonKey || 'missing-key'
+);
+
+Why this is better than the previous version
+
+The previous placeholder used 'https://placeholder.supabase.co' which is a real
+domain that responds with connection errors, causing "Failed to fetch". The new
+fallback uses 'https://missing-env.invalid' which fails immediately with a DNS
+error rather than a slow timeout, and logs a clear console message explaining
+exactly what is missing. On Cloudflare where the real variables exist, this fallback
+is never used.
+
+Side effect check
+
+Every file that imports supabase from supabaseClient will receive a valid
+SupabaseClient object. The only difference is what URL it points to. On Cloudflare
+with real variables it connects correctly. Locally without variables it fails fast
+with a clear error. No other file needs to change.
+
+
+FIX 2 — Email confirmation must not block registration
+
+What is happening
+
+Supabase has "Confirm email" enabled in its Auth settings. When this is ON,
+supabase.auth.signUp() returns data.session as null because the user has not
+confirmed yet. The previous fix added a requiresConfirmation check and shows a
+message. However, the user should be able to register and use the app immediately
+without email confirmation getting in the way.
+
+The fix — two parts
+
+Part A — Supabase dashboard (you cannot do this in code — report it to the user)
+
+Tell the user: Go to your Supabase project → Authentication → Settings → Email →
+find the toggle called "Enable email confirmations" or "Confirm email" → turn it
+OFF → click Save. This is a one-time change in the dashboard. Once done, users
+can register and log in immediately.
+
+Part B — Code fix in dataService.ts
+
+Keep the requiresConfirmation check that was already added for safety. But update
+the message returned when requiresConfirmation is true so it is accurate:
+
+Find the section that returns requiresConfirmation: true and ensure the flow in
+StudentAuth.tsx shows this message:
+'Registration successful. Please check your email to confirm your account,
+then sign in.'
+
+Also ensure that after showing this message, the form resets to the sign in tab
+automatically so the user can sign in immediately if they confirm in another tab.
+Do this by setting the active tab to 'login' after showing the confirmation message.
+
+In StudentAuth.tsx find where requiresConfirmation is handled and add:
+
+typescriptif (requiresConfirmation) {
+  setConfirmationMessage(
+    'Registration successful. Please check your email to confirm your account, 
+    then sign in.'
+  );
+  setActiveTab('login'); // switch to login tab automatically
+  return;
+}
+
+Check what the tab state variable is actually called in StudentAuth.tsx and use
+the correct variable name. Do not rename it.
+
+
+FIX 3 — Entering as a student must go directly to the feed, not the sign in page
+
+What is happening
+
+On the entrance page, when a user taps "Enter as Student" or "Enter the Marketplace"
+or whichever button takes them into the student side, they are taken to /student
+which is the sign in page. This forces every visitor to sign in before seeing
+anything, which is wrong. The feed must be public. Anyone must be able to browse
+listings without an account. Sign in must only appear when a user tries to do
+something that requires an account.
+
+The fix
+
+In src/pages/Entrance.tsx find the navigation call that sends the user to /student
+when they tap the student entry button.
+
+Change that navigation target from '/student' to '/feed'.
+
+The student entry button must navigate to '/feed' directly.
+
+Do not change the business entry button — that one stays as it is.
+
+Do not change anything else in Entrance.tsx.
+
+What this means for the rest of the app
+
+Logged-out users can now browse the feed freely. Sign in appears when:
+
+
+They tap "I'm Interested" on a listing (already handled by the protected route
+on /chat)
+They tap the Post button (already a ProtectedRoute that redirects to /student)
+They tap the Messages or Profile icons in the bottom nav (already handled)
+
+
+None of those need to change. Only the entrance button target changes.
+
+
+AFTER ALL FIXES
+
+Confirm the following before pushing:
+
+
+supabaseClient.ts no longer uses 'https://placeholder.supabase.co' as a
+fallback — it uses 'https://missing-env.invalid' instead, which fails fast
+and logs a clear error
+The entrance page student button navigates to '/feed' not '/student'
+The registration flow shows a clear message and switches to the login tab when
+email confirmation is required
+No other file was modified
+No styling, layout, or Tailwind classes were changed
+No new features were added beyond what is listed above
+
+
+Push to GitHub. List every file modified with the exact lines changed.
+
+Then tell the user: Go to Supabase → Authentication → Settings → turn off
+"Enable email confirmations" → Save. This must be done in the Supabase dashboard
+and cannot be done from code.

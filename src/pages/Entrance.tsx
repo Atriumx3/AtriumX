@@ -19,7 +19,7 @@ export default function Entrance() {
           <h2 className="text-cream text-xl font-bold mt-3">I'm a Student</h2>
           <p className="text-cream-muted text-sm mt-1">Browse listings and buy from your neighbours.</p>
           <button
-            onClick={() => navigate('/student')}
+            onClick={() => navigate('/feed')}
             className="bg-ember text-white rounded-xl py-3 px-6 font-bold text-base w-full mt-4"
           >
             Enter the Marketplace
