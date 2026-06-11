@@ -1,0 +1,76 @@
+AtriumX — Investigate "Invalid API key" Error
+
+YOUR ONLY JOB
+
+Read the code. Do not fix anything yet. Do not change any file.
+Find exactly why the live app returns "Invalid API key" when a user tries to register.
+Report your findings in full before touching a single line.
+
+
+WHAT YOU ARE LOOKING FOR
+
+The app shows "Invalid API key" on the registration form on the live Cloudflare
+deployment. The environment variables VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+are correctly set in Cloudflare. The key has been confirmed correct and matches the
+Supabase project. This means the problem is in the code — not the environment.
+
+
+INVESTIGATE THESE SPECIFIC THINGS
+
+Investigation 1 — How is the Supabase client created?
+Read src/services/supabaseClient.ts completely.
+Report the exact code that creates the Supabase client.
+Is the anon key read from import.meta.env.VITE_SUPABASE_ANON_KEY?
+Is there any transformation, trimming, encoding, or modification applied to the
+key before it is passed to createClient?
+Is there any fallback value, placeholder, or hardcoded string that could be used
+instead of the real environment variable?
+Show every line of this file exactly as it is.
+
+Investigation 2 — How is the key used in auth calls?
+Read src/services/dataService.ts.
+Find every call to supabase.auth.signUp and supabase.auth.signInWithPassword.
+Is the supabase client imported from supabaseClient.ts?
+Is there any point where a different Supabase client is created inline with a
+hardcoded key?
+Show the exact import line and the exact auth call lines.
+
+Investigation 3 — Is the key being passed through any header manipulation?
+Search every file in the project for any custom headers being set on Supabase
+requests — things like apikey, Authorization, x-client-info.
+If any file manually sets an apikey header, show the exact line and file.
+
+Investigation 4 — Check the Supabase client version
+Read package.json and report the exact version of @supabase/supabase-js installed.
+Different versions handle the anon key differently. Report the exact version string.
+
+Investigation 5 — Is there more than one Supabase client being created?
+Search every file in the project for calls to createClient.
+If createClient is called more than once anywhere in the codebase, show every
+occurrence with the file name and line number.
+Multiple clients created with different keys would explain why one call works
+and another returns Invalid API key.
+
+Investigation 6 — Is the error actually coming from Supabase or from the app?
+Read src/pages/StudentAuth.tsx completely.
+Find where the error message "Invalid API key" could originate.
+Is it a string hardcoded in the app code?
+Or is it a message returned directly from Supabase and passed through to the UI?
+Show the exact error handling code.
+
+
+YOUR REPORT FORMAT
+
+For each investigation, write:
+
+INVESTIGATION [number] — [title]
+FINDING: [what you found]
+RELEVANT CODE:
+[paste the exact lines]
+VERDICT: [one sentence conclusion]
+
+At the end write:
+ROOT CAUSE: [your conclusion about why Invalid API key is showing]
+FILES THAT NEED CHANGING: [list only the files that contain the actual bug]
+
+Do not fix anything. Do not push anything. Report only.
