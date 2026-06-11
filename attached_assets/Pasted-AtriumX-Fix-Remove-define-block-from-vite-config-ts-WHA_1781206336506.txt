@@ -1,0 +1,139 @@
+AtriumX — Fix: Remove define block from vite.config.ts
+
+WHAT WAS FOUND
+
+A full codebase investigation confirmed one root cause for every environment
+variable failure this app has experienced on Cloudflare Pages.
+
+vite.config.ts contains a define block that calls loadEnv() to read environment
+variables and then hardcodes them into the compiled JavaScript bundle using
+import.meta.env overrides.
+
+The problem is that loadEnv() reads from .env files on disk. Cloudflare Pages does
+not write .env files to disk — it injects environment variables directly into the
+build process environment (process.env). loadEnv() never sees the Cloudflare
+variables. env.VITE_SUPABASE_URL and env.VITE_SUPABASE_ANON_KEY are both undefined.
+The fallback || '' turns them into empty strings. The define block then hardcodes
+those empty strings into the bundle, overwriting what Vite's own native mechanism
+would have correctly injected from process.env.
+
+The result is that import.meta.env.VITE_SUPABASE_URL and
+import.meta.env.VITE_SUPABASE_ANON_KEY are literally empty strings ("") in every
+Cloudflare deployment regardless of what is saved in Cloudflare's variable settings.
+The Supabase client falls through to its placeholder fallback, which points to a real
+Supabase subdomain that accepts the request but rejects the placeholder key with
+"Invalid API key" — exactly what users see.
+
+Vite natively handles all environment variables prefixed with VITE_ by reading them
+from process.env during the build and replacing import.meta.env.VITE_* references
+in the compiled output automatically. The define block was never needed. It actively
+breaks the app by interfering with Vite's own mechanism.
+
+
+THE FIX — ONE FILE ONLY
+
+File: vite.config.ts
+
+Open the file and read it completely first. Then do the following:
+
+Step 1 — Remove the loadEnv import
+
+Find the import line that imports loadEnv from vite. It looks like one of these:
+
+typescriptimport { defineConfig, loadEnv } from 'vite';
+
+Remove loadEnv from this import. Keep defineConfig. The result must be:
+
+typescriptimport { defineConfig } from 'vite';
+
+If loadEnv is not in the import, skip this step.
+
+Step 2 — Remove the entire define block and the env variable
+
+Find and remove everything that looks like this:
+
+typescriptconst env = loadEnv(mode, process.cwd(), '');
+
+And remove the entire define block:
+
+typescriptdefine: {
+  'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(
+    env.VITE_SUPABASE_URL || ''
+  ),
+  'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(
+    env.VITE_SUPABASE_ANON_KEY || ''
+  ),
+},
+
+Remove only these lines. Remove nothing else.
+
+Step 3 — If defineConfig uses a function callback, simplify it
+
+If the removal of the env variable means the defineConfig callback no longer needs
+a mode parameter, simplify the signature. For example if it was:
+
+typescriptexport default defineConfig(({ mode }) => ({
+  ...
+}))
+
+And mode is no longer used anywhere after removing the define block, change it to:
+
+typescriptexport default defineConfig({
+  ...
+})
+
+But only if mode is not used anywhere else in the file. If it is still used, leave
+the function form as is.
+
+
+SIDE EFFECT CHECK — DO THIS BEFORE PUSHING
+
+After making the changes, read the entire vite.config.ts one more time and confirm:
+
+
+No other part of the file references env, loadEnv, or the removed define block
+The plugins array is still intact and unchanged
+The server configuration if any is still intact and unchanged
+The build configuration if any is still intact and unchanged
+The file is still valid TypeScript and exports a valid Vite config
+
+
+Then search the entire codebase for any other file that imports or references
+loadEnv. If found anywhere outside vite.config.ts, report it but do not remove it.
+
+
+WHAT THIS FIX DOES
+
+After this change, when Cloudflare runs npm run build:
+
+
+Vite reads VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY from process.env
+automatically — this is Vite's built-in behaviour for all VITE_* prefixed variables
+The compiled bundle contains the real Supabase URL and real anon key
+supabaseClient.ts receives real values, not empty strings
+The createClient call connects to the real Supabase project
+Registration and login work correctly
+"Invalid API key" never appears again
+
+
+
+DO NOT DO ANY OF THESE
+
+
+Do not touch supabaseClient.ts
+Do not touch AppContext.tsx
+Do not touch dataService.ts
+Do not touch any component, page, or service file
+Do not change any Tailwind classes or styling
+Do not add any new configuration to vite.config.ts
+Do not install any new packages
+Do not add a .env file to the project
+
+
+
+AFTER THE FIX
+
+Show the complete final contents of vite.config.ts so the change can be verified.
+Push to GitHub.
+Confirm the push was successful with the commit hash.
+State clearly that only vite.config.ts was modified.
