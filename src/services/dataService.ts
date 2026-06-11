@@ -74,8 +74,15 @@ export async function loginWithEmail(
   password: string
 ): Promise<{ user: Profile | null; error: string | null }> {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { user: null, error: error.message };
-  if (!data.user) return { user: null, error: 'Login failed.' };
+  if (error) {
+    const message = error.message.includes('Email not confirmed')
+      ? 'Please confirm your email before signing in. Check your inbox for the confirmation link.'
+      : error.message.includes('Invalid login credentials')
+      ? 'Incorrect email or password. Please try again.'
+      : error.message;
+    return { user: null, error: message };
+  }
+  if (!data.user) return { user: null, error: 'Login failed. Please try again.' };
   const profile = await getUserById(data.user.id);
   return { user: profile, error: null };
 }
@@ -85,7 +92,7 @@ export async function registerWithEmail(
   password: string,
   fullName: string,
   residence: string
-): Promise<{ user: Profile | null; error: string | null }> {
+): Promise<{ user: Profile | null; error: string | null; requiresConfirmation?: boolean }> {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -95,11 +102,15 @@ export async function registerWithEmail(
   });
   if (error) return { user: null, error: error.message };
   if (!data.user) return { user: null, error: 'Registration failed.' };
- 
+
+  if (!data.session) {
+    return { user: null, error: null, requiresConfirmation: true };
+  }
+
   // Give the trigger a moment then fetch the profile
   await new Promise(r => setTimeout(r, 800));
   let profile = await getUserById(data.user.id);
- 
+
   // If trigger hasn't fired yet, insert manually
   if (!profile) {
     const initials =
@@ -116,11 +127,18 @@ export async function registerWithEmail(
       residence,
       avatar_initials: initials,
       avatar_color: '#1A5F7A',
+      plan: 'ghost',
+      is_verified: false,
+      is_admin: false,
+      avg_rating: 0,
+      total_ratings: 0,
+      total_listings: 0,
+      joined_date: new Date().toISOString().split('T')[0],
     });
-    if (insertError) return { user: null, error: insertError.message };
+    if (insertError) return { user: null, error: `Profile creation failed: ${insertError.message}` };
     profile = await getUserById(data.user.id);
   }
- 
+
   return { user: profile, error: null };
 }
  

@@ -1,0 +1,219 @@
+AtriumX — Registration & Login Bug Fix
+
+CONTEXT
+
+This is a React/TypeScript app using Supabase for authentication and a PostgreSQL
+database. The app has three confirmed bugs that prevent users from ever successfully
+registering or signing in. All three bugs are in the authentication flow. A full
+investigation has already been done — do not re-investigate. Apply the three fixes
+described below exactly as described.
+
+Do not add an email domain allowlist. Do not restrict registration to any university
+email domain. The app must accept any valid email address.
+
+Do not edit any file that is not directly involved in these three bugs.
+Do not add any feature not described in this prompt.
+Do not change any styling, layout, or Tailwind classes.
+Push to GitHub when all three fixes are confirmed working and list every file modified.
+
+
+BUG 1 — Email confirmation is ON in Supabase, which silently kills registration
+
+What is happening
+
+When supabase.auth.signUp() is called and Supabase has "Confirm email" enabled in
+its Auth settings, it returns a data.user object but data.session is null. There is
+no active session at this point because the user has not confirmed their email yet.
+
+The current code ignores this and immediately tries to fetch and insert a profile
+row. The profile fetch returns null (no row exists yet because the trigger has not
+fired without a confirmed session). The code then falls through to manually insert
+into the profiles table. This insert is blocked by Row Level Security because there
+is no active session — RLS checks auth.uid() which returns null when there is no
+session. The insert fails with a Postgres RLS violation error. This error message
+gets shown to the user in the email field — a cryptic database error where they
+expected nothing more than a confirmation. The user is left confused, never
+registered, and the app never tells them to check their email.
+
+The fix
+
+In src/services/dataService.ts, find the registerWithEmail function.
+
+After the supabase.auth.signUp() call, before doing anything else, check whether
+data.session is null:
+
+typescriptif (!data.session) {
+  // Email confirmation is required — no session yet
+  // The trigger will fire and create the profile after the user confirms
+  // Do not attempt to fetch or insert a profile here
+  return { 
+    user: null, 
+    error: null, 
+    requiresConfirmation: true 
+  };
+}
+
+Update the return type of registerWithEmail to include requiresConfirmation as an
+optional boolean:
+
+typescriptPromise<{ user: Profile | null; error: string | null; requiresConfirmation?: boolean }>
+
+Then in src/pages/StudentAuth.tsx, find where registerWithEmail is called and handle
+the new return value:
+
+typescriptconst { user, error, requiresConfirmation } = await registerWithEmail(...);
+
+if (requiresConfirmation) {
+  // Show a clear message — do not navigate anywhere
+  setError('Account created. Please check your email and click the confirmation 
+    link before signing in.');
+  return;
+}
+
+if (error) {
+  setError(error);
+  return;
+}
+
+// Only reach here if session exists and profile is confirmed
+// Request notification permission then navigate
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+navigate('/feed');
+
+The message shown must be warm and clear. The user must understand they need to
+check their email. They must not be redirected anywhere. The form must not clear.
+
+
+BUG 2 — All login errors are mapped to the same generic message
+
+What is happening
+
+In the login flow, the error returned from supabase.auth.signInWithPassword is being
+overwritten with a generic hardcoded string like "Invalid email or password. Please
+try again." regardless of what the actual error is.
+
+This means:
+
+
+A user who registered but has not confirmed their email sees "Invalid email or
+password" — factually wrong, sends them in circles
+A user who genuinely typed the wrong password sees the same message — fine
+A user whose account does not exist sees the same message — fine
+A user who is rate limited, or has a network error, sees the same message —
+extremely confusing
+
+
+The fix
+
+In src/services/dataService.ts, find the loginWithEmail function.
+
+Change the error return so it passes the real Supabase error message directly:
+
+typescriptexport async function loginWithEmail(
+  email: string,
+  password: string
+): Promise<{ user: Profile | null; error: string | null }> {
+  const { data, error } = await supabase.auth.signInWithPassword({ 
+    email, 
+    password 
+  });
+  
+  if (error) {
+    // Pass the real error message — do not overwrite it
+    // Map specific Supabase messages to human-friendly versions
+    const message = error.message.includes('Email not confirmed')
+      ? 'Please confirm your email before signing in. Check your inbox for the confirmation link.'
+      : error.message.includes('Invalid login credentials')
+      ? 'Incorrect email or password. Please try again.'
+      : error.message; // pass all other errors as-is
+    
+    return { user: null, error: message };
+  }
+  
+  if (!data.user) return { user: null, error: 'Login failed. Please try again.' };
+  
+  const profile = await getUserById(data.user.id);
+  return { user: profile, error: null };
+}
+
+In src/pages/StudentAuth.tsx, confirm the login error is rendered inline in the UI
+directly below the email or password field and is visible in red. If it is only
+being console.logged or swallowed, fix it to display on screen.
+
+
+BUG 3 — Manual profile insert is missing required columns causing a silent failure
+
+What is happening
+
+When supabase.auth.signUp() succeeds and a session exists, the code waits 800ms
+and tries to fetch the profile (in case the database trigger already created it).
+If the profile does not exist yet, it manually inserts one.
+
+The manual insert only passes: id, full_name, email, residence, avatar_initials,
+avatar_color.
+
+The profiles table has these additional columns that may have no default value
+in the database: plan, is_verified, is_admin, avg_rating, total_ratings,
+total_listings, joined_date.
+
+If any of these columns are NOT NULL without a default, the insert fails with a
+Postgres constraint violation. This is another silent failure.
+
+The fix
+
+In src/services/dataService.ts, find the manual profile insert inside
+registerWithEmail. Replace it with a complete insert that includes all required
+columns with safe default values:
+
+typescriptconst { error: insertError } = await supabase.from('profiles').insert({
+  id: data.user.id,
+  full_name: fullName,
+  email,
+  residence,
+  avatar_initials: initials,
+  avatar_color: '#1A5F7A',
+  plan: 'ghost',
+  is_verified: false,
+  is_admin: false,
+  avg_rating: 0,
+  total_ratings: 0,
+  total_listings: 0,
+  joined_date: new Date().toISOString().split('T')[0],
+});
+
+Every new user starts on the Ghost plan. is_admin and is_verified are false.
+All counters start at zero. joined_date is today's date in YYYY-MM-DD format.
+
+After this insert, check for insertError and return it clearly:
+
+typescriptif (insertError) {
+  return { 
+    user: null, 
+    error: `Profile creation failed: ${insertError.message}` 
+  };
+}
+
+This ensures the user sees a meaningful error if something goes wrong instead of
+a blank form that does nothing.
+
+
+AFTER ALL THREE FIXES
+
+Before pushing, confirm the following by reading the code:
+
+
+registerWithEmail handles the case where data.session is null and returns
+requiresConfirmation: true without attempting any database operations
+StudentAuth.tsx shows the confirmation message clearly and does not navigate
+when requiresConfirmation is true
+loginWithEmail passes real Supabase error messages and maps "Email not confirmed"
+to a human-readable explanation
+The manual profile insert in registerWithEmail includes all columns with safe
+defaults and returns a meaningful error if the insert fails
+No other file was modified beyond StudentAuth.tsx and dataService.ts
+No styling, routing, or layout was changed
+
+
+Push to GitHub. List every file modified with the exact lines changed.

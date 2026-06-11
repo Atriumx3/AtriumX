@@ -11,6 +11,7 @@ export default function StudentAuth() {
   const [fullName, setFullName] = useState('');
   const [residence, setResidence] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [confirmationMessage, setConfirmationMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const { setCurrentUser, redirectAfterLogin, setRedirectAfterLogin } = useApp();
   const navigate = useNavigate();
@@ -53,7 +54,7 @@ export default function StudentAuth() {
       const { user, error } = await loginWithEmail(email, password);
       setLoading(false);
       if (error) {
-        setErrors({ email: 'Invalid email or password. Please try again.' });
+        setErrors({ email: error });
         return;
       }
       if (user) {
@@ -62,8 +63,12 @@ export default function StudentAuth() {
         setRedirectAfterLogin(null);
       }
     } else {
-      const { user, error } = await registerWithEmail(email, password, fullName, residence);
+      const { user, error, requiresConfirmation } = await registerWithEmail(email, password, fullName, residence);
       setLoading(false);
+      if (requiresConfirmation) {
+        setConfirmationMessage('Account created! Please check your email and click the confirmation link before signing in.');
+        return;
+      }
       if (error) {
         setErrors({ email: error });
         return;
@@ -91,6 +96,10 @@ export default function StudentAuth() {
             {mode === 'login' ? 'Welcome back' : 'Join your campus'}
           </h1>
         </div>
+
+        {confirmationMessage && (
+          <p className="text-teal-light text-sm text-center mb-2">{confirmationMessage}</p>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {mode === 'register' && (
