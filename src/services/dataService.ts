@@ -97,7 +97,12 @@ export async function registerWithEmail(
     email,
     password,
     options: {
-      data: { full_name: fullName, residence },
+ data: {
+  full_name: fullName,
+  residence,
+  avatar_initials: fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2),
+  avatar_color: ['#E74C3C','#3498DB','#2ECC71','#F39C12','#9B59B6'][Math.floor(Math.random() * 5)],
+},
     },
   });
   if (error) return { user: null, error: error.message };
