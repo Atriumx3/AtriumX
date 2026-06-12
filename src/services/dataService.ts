@@ -131,7 +131,7 @@ export async function registerWithEmail(
       email,
       residence,
       avatar_initials: initials,
-      avatar_color: '#1A5F7A',
+      avatar_color:['#E74C3C','#3498DB','#2ECC71','#F39C12','#9B59B6'][Math.floor(Math.random() * 5)] ,
       plan: 'ghost',
       is_verified: false,
       is_admin: false,
