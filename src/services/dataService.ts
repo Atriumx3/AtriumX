@@ -113,7 +113,7 @@ export async function registerWithEmail(
   }
 
   // Give the trigger a moment then fetch the profile
-  await new Promise(r => setTimeout(r, 800));
+  await new Promise(r => setTimeout(r, 1500));
   let profile = await getUserById(data.user.id);
 
   // If trigger hasn't fired yet, insert manually
