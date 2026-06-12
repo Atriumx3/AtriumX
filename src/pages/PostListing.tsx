@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { createListing } from '../services/dataService';
+import { createListing, getUserById } from '../services/dataService';
+import type { Profile } from '../services/dataService';
 import { CATEGORIES } from '../services/mock/mockCategories';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../services/supabaseClient';
@@ -20,7 +21,15 @@ export default function PostListing() {
   const [customCategory, setCustomCategory] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [dbPlan, setDbPlan] = useState<string | null>(null);
   const [residence, setResidence] = useState(currentUser?.residence ?? '');
+
+  useEffect(() => {
+    if (!currentUser) return;
+    getUserById(currentUser.id).then((p: Profile | null) => {
+      if (p) setDbPlan(p.plan);
+    });
+  }, [currentUser]);
 
   const isFormValid =
     (selectedPlan === 'ghost' || !!imageData) &&
@@ -109,15 +118,15 @@ export default function PostListing() {
         <p className="text-cream-muted text-sm mt-1">Fill in all fields. Incomplete listings will not be posted.</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-6">
-          {selectedPlan !== 'ghost' ? (
+          {dbPlan === 'ghost' ? (
+            <p className="text-cream-muted text-sm">Photo upload is not available on the Ghost plan.</p>
+          ) : selectedPlan !== 'ghost' ? (
             <div>
               <label className="text-cream text-sm font-medium mb-1 block">Photo</label>
               <ListingImageUpload onImageSelect={setImageData} />
               {errors.image && <p className="text-status-danger text-sm mt-1">{errors.image}</p>}
             </div>
-          ) : (
-            <p className="text-cream-muted text-sm">Photo upload is not available on the Ghost plan.</p>
-          )}
+          ) : null}
 
           <div>
             <label htmlFor="title" className="text-cream text-sm font-medium mb-1 block">Title</label>
@@ -173,6 +182,7 @@ export default function PostListing() {
               <button
                 type="button"
                 onClick={() => setListingType('single')}
+                aria-pressed={listingType === 'single'}
                 className={listingType === 'single' ? 'bg-teal-primary text-cream border border-teal-light rounded-full px-4 py-2 text-sm font-medium' : 'bg-slate-card text-cream-muted border border-slate-border rounded-full px-4 py-2 text-sm font-medium'}
               >
                 Single item
@@ -180,6 +190,7 @@ export default function PostListing() {
               <button
                 type="button"
                 onClick={() => setListingType('ongoing')}
+                aria-pressed={listingType === 'ongoing'}
                 className={listingType === 'ongoing' ? 'bg-teal-primary text-cream border border-teal-light rounded-full px-4 py-2 text-sm font-medium' : 'bg-slate-card text-cream-muted border border-slate-border rounded-full px-4 py-2 text-sm font-medium'}
               >
                 Always available

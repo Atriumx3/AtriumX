@@ -16,7 +16,7 @@ export default function StatsBanner() {
         ))}
       </div>
       <p className="text-cream-muted text-xs text-center mt-8 max-w-md mx-auto">
-        Figures are estimated for the Wits Braamfontein residence cluster.
+        Figures are estimated for your residence cluster.
       </p>
     </div>
   );

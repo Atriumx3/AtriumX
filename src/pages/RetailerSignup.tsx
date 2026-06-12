@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import RetailerNavbar from '../components/retailer/RetailerNavbar';
 import { submitBusinessApplication } from '../services/dataService';
+import { useApp } from '../context/AppContext';
 
 export default function RetailerSignup() {
+  const { showToast } = useApp();
   const [searchParams] = useSearchParams();
   const tierParam = searchParams.get('tier') ?? '';
 
@@ -43,7 +45,7 @@ export default function RetailerSignup() {
       description,
     });
     if (error) {
-      alert('Submission failed. Please try again.');
+      showToast('Submission failed. Please try again.', 'error');
       return;
     }
     setSubmitted(true);

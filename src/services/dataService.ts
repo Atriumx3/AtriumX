@@ -401,6 +401,22 @@ export async function getAllListingsAdmin(): Promise<Listing[]> {
   if (error || !data) return [];
   return data as Listing[];
 }
+
+export async function updateListingStatus(id: string, status: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('listings')
+    .update({ status })
+    .eq('id', id);
+  return { error: error ? error.message : null };
+}
+
+export async function clearReports(listingId: string): Promise<{ error: string | null }> {
+  const { error } = await supabase
+    .from('reports')
+    .delete()
+    .eq('listing_id', listingId);
+  return { error: error ? error.message : null };
+}
  
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────
  
